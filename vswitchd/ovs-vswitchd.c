@@ -49,6 +49,8 @@
 #include "openvswitch/vlog.h"
 #include "lib/vswitch-idl.h"
 #include "lib/netdev-dpdk.h"
+#include "lib/cm/data_warehouse.h"
+#include "lib/cm/interval_rotator.h"
 
 VLOG_DEFINE_THIS_MODULE(vswitchd);
 
@@ -69,6 +71,18 @@ main(int argc, char *argv[])
     char *remote;
     bool exiting;
     int retval;
+    pthread_t interval_rotate_thread;
+
+    /* init data_warehouse */
+    if (data_warehouse_init() != 0) {
+        printf("FAIL:data_warehouse_init\n");
+        return -1;
+    }
+    /* interval rotate thread */
+    if (pthread_create(&interval_rotate_thread, NULL, rotate_interval, NULL)) {
+        printf("\nFailed: pthread_create rotate_interval\n");
+        return 1;
+    }
 
     set_program_name(argv[0]);
     retval = dpdk_init(argc,argv);

@@ -285,7 +285,13 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/lldp/lldpd.c \
 	lib/lldp/lldpd.h \
 	lib/lldp/lldpd-structs.c \
-	lib/lldp/lldpd-structs.h
+	lib/lldp/lldpd-structs.h \
+	lib/cm/data_warehouse.h \
+	lib/cm/data_warehouse.c \
+	lib/cm/interval_rotator.h \
+	lib/cm/interval_rotator.c \
+	lib/cm/mt_hashtable_kFlowSrc_vInt_fixSize.h \
+	lib/cm/mt_hashtable_kFlowSrc_vInt_fixSize.c
 
 if WIN32
 lib_libopenvswitch_la_SOURCES += \

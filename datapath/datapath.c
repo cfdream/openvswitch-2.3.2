@@ -272,7 +272,8 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	/* Look up flow. */
 	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, skb_get_hash(skb),
 					 &n_mask_hit);
-	if (unlikely(!flow)) {
+    //xuemei: comment so that all packets will go the user space
+	//if (unlikely(!flow)) {
 		struct dp_upcall_info upcall;
 		int error;
 
@@ -287,7 +288,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 			consume_skb(skb);
 		stats_counter = &stats->n_missed;
 		goto out;
-	}
+	//}
 
 	ovs_flow_stats_update(flow, key->tp.flags, skb);
 	sf_acts = rcu_dereference(flow->sf_acts);
