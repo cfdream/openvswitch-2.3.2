@@ -9,6 +9,7 @@
  *
  * */
 
+#include <config.h>
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "data_warehouse.h"
 #include "mt_hashtable_kFlowSrc_vInt_fixSize.h"

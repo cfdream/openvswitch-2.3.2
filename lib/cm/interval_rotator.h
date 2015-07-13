@@ -4,12 +4,13 @@
 #include <time.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <assert.h>
 #include "data_warehouse.h"
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "../../CM_testbed_code/public_lib/senderFIFOsManager.h"
 #include "../../CM_testbed_code/public_lib/mt_hashtable_kFlow_vInt.h"
 
+//set in lib/dpif-netlink.c:dpif_netlink_operate()
+char* cm_switch_name;
 
 FILE* init_target_flow_file(void);
 

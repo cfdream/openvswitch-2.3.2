@@ -55,6 +55,7 @@
 #include "util.h"
 #include "openvswitch/vlog.h"
 #include "cm/packet_processor.h"
+#include "cm/interval_rotator.h"
 
 VLOG_DEFINE_THIS_MODULE(dpif_netlink);
 #ifdef _WIN32
@@ -1726,6 +1727,7 @@ dpif_netlink_operate__(struct dpif_netlink *dpif,
 static void
 dpif_netlink_operate(struct dpif *dpif_, struct dpif_op **ops, size_t n_ops)
 {
+    cm_switch_name = dpif_base_name(dpif_);
     struct dpif_netlink *dpif = dpif_netlink_cast(dpif_);
 
     while (n_ops > 0) {

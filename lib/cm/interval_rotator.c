@@ -1,20 +1,30 @@
+#include <config.h>
 #include "../../CM_testbed_code/public_lib/time_library.h"
+#include "openvswitch/vlog.h"
 #include "interval_rotator.h"
 
 FILE* init_target_flow_file(void) {
     FILE* fp_target_flows;
     //1. get switch name
-    //TODO: need to test whether this works
+    /*need to test whether this works
+    //test result: switch cannot be got in this way
     char hostname[100];
     if (get_mininet_host_name(hostname, 100) != 0) {
         printf("FAIL:get_mininet_host_name\n");
         return NULL;
     }
+    */
+    //TODO: should be tested whether work or not
+    if (cm_switch_name == NULL) {
+        printf("FAIL: cm_switch_name == NULL\n");
+        return NULL; 
+    }
+
     //2. generate target_flow_fname, sampled_flow_fname
     char target_flow_fname[200];
     snprintf(target_flow_fname, 200, "%s%s%s", 
         CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX,
-        hostname, CM_RECEIVER_TARGET_FLOW_FNAME_SUFFIX);
+        cm_switch_name, CM_RECEIVER_TARGET_FLOW_FNAME_SUFFIX);
     //3. open target_flow_fname, sampled_flow_fname
     fp_target_flows = fopen(target_flow_fname, "a+");
     if (fp_target_flows == NULL) {
@@ -27,7 +37,6 @@ FILE* init_target_flow_file(void) {
 }
 
 void write_target_flows_to_file(uint64_t current_sec, FILE* fp_target_flow) {
-    assert(fp_target_flow != NULL);
     fprintf(fp_target_flow, "time-%lu seconds\n", current_sec);
     hashtable_kfs_vi_t* target_flow_map_pre_interval = data_warehouse_get_unactive_target_flow_map();
     hashtable_kfs_vi_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map();
@@ -48,11 +57,6 @@ void write_target_flows_to_file(uint64_t current_sec, FILE* fp_target_flow) {
 void* rotate_interval(void* param) {
     //sleep two second
     sleep(2);
-    FILE* fp_target_flow = init_target_flow_file();
-    if (fp_target_flow == NULL) {
-        printf("FAIL: init_target_flow_file\n");
-        return NULL;
-    }
 
     while (true) {
         /* all switches start/end at the nearby timestamp for intervals */
@@ -63,14 +67,20 @@ void* rotate_interval(void* param) {
         data_ware_rotate_buffer();
 
         //2. store the target flow identities of the past interval into file
+        FILE* fp_target_flow = init_target_flow_file();
+        if (fp_target_flow == NULL) {
+            printf("FAIL: init_target_flow_file\n");
+            return NULL;
+        }
+
         write_target_flows_to_file(current_sec, fp_target_flow);
+
+        //close file
+        fclose(fp_target_flow);
 
         //3. reset the idel buffer of data warehouse
         data_warehouse_reset_noactive_buf();
     }
-
-    //close file
-    fclose(fp_target_flow);
 
     return NULL;
 }

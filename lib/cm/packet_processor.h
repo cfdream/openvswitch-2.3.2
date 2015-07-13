@@ -1,7 +1,6 @@
 #ifndef PACKET_PROCESSOR_H
 #define PACKET_PROCESSOR_H
 
-#include <netinet/in.h>
 #include "../CM_testbed_code/public_lib/packet.h"
 #include "../CM_testbed_code/public_lib/flow.h"
 #include "../CM_testbed_code/public_lib/condition.h"
@@ -71,7 +70,7 @@ void process(struct dpif_execute *execute){
         process_normal_packet(&packet);
 
         //debug one flow: set in public_lib/debug_config.h
-        if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
+        /*if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
             packet.src_port == DEBUG_SPORT && packet.dst_port == DEBUG_DPORT) {
             struct in_addr src_addr;
             struct in_addr dst_addr;
@@ -89,6 +88,7 @@ void process(struct dpif_execute *execute){
                 src_str, dst_str, packet.src_port, packet.dst_port, packet.seqid);
             DEBUG(buffer);
         }
+        */
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         process_condition_packet(&packet);
