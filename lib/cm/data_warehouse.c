@@ -1,5 +1,6 @@
 #include <config.h>
 #include "data_warehouse.h"
+#include "../../CM_testbed_code/public_lib/time_library.h"
 
 /**
 * @brief init the data warehouse, at the beginning, only the first buffer should be initiliazed
@@ -8,21 +9,25 @@
 */
 int data_warehouse_init(void) {
     //set the initial buffer
+    int a_idx = 0;
+
+    for (; a_idx < BUFFER_NUM; ++a_idx) {
+        data_warehouse.flow_volume_map[a_idx] = ht_kfs_vi_create();
+        if (data_warehouse.flow_volume_map[a_idx] == NULL) {
+            return -1;
+        }
+        data_warehouse.target_flow_map[a_idx] = ht_kfs_vi_create();
+        if (data_warehouse.target_flow_map[a_idx] == NULL) {
+            return -1;
+        }
+        data_warehouse.flow_sample_map[a_idx] = ht_kfs_vi_fixSize_create();
+        if (data_warehouse.flow_sample_map[a_idx] == NULL) {
+            return -1;
+        }
+    }
+
     data_warehouse.active_idx = 0;
-    int a_idx = data_warehouse.active_idx;
-    
-    data_warehouse.flow_volume_map[a_idx] = ht_kfs_vi_create();
-    if (data_warehouse.flow_volume_map[a_idx] == NULL) {
-        return -1;
-    }
-    data_warehouse.target_flow_map[a_idx] = ht_kfs_vi_create();
-    if (data_warehouse.target_flow_map[a_idx] == NULL) {
-        return -1;
-    }
-    data_warehouse.flow_sample_map[a_idx] = ht_kfs_vi_fixSize_create();
-    if (data_warehouse.flow_sample_map[a_idx] == NULL) {
-        return -1;
-    }
+    NOTICE("SUCC data_warehouse_init");
 
     return 0;
 }

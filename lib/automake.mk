@@ -292,10 +292,10 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/cm/interval_rotator.c \
 	lib/cm/mt_hashtable_kFlowSrc_vInt_fixSize.h \
 	lib/cm/mt_hashtable_kFlowSrc_vInt_fixSize.c \
-	lib/cm/condition_map.h \
+	lib/cm/packet_processor.h \
+	lib/cm/packet_processor.c \
 	lib/cm/global_data.h \
-	lib/cm/global_setting.h \
-	lib/cm/packet_processor.h
+	lib/cm/global_setting.h
 
 
 if WIN32

@@ -1,5 +1,6 @@
 #include <config.h>
 #include "../../CM_testbed_code/public_lib/time_library.h"
+#include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "openvswitch/vlog.h"
 #include "interval_rotator.h"
 
@@ -16,7 +17,7 @@ FILE* init_target_flow_file(void) {
     */
     //TODO: should be tested whether work or not
     if (cm_switch_name == NULL) {
-        printf("FAIL: cm_switch_name == NULL\n");
+        ERROR("FAIL: cm_switch_name == NULL\n");
         return NULL; 
     }
 
@@ -28,7 +29,9 @@ FILE* init_target_flow_file(void) {
     //3. open target_flow_fname, sampled_flow_fname
     fp_target_flows = fopen(target_flow_fname, "a+");
     if (fp_target_flows == NULL) {
-        printf("FAIL: fopen %s\n", target_flow_fname);
+        char buf[100];
+        snprintf(buf, 100, "FAIL: fopen %s\n", target_flow_fname);
+        ERROR(buf);
         return NULL;
     }
 
@@ -50,7 +53,9 @@ void write_target_flows_to_file(uint64_t current_sec, FILE* fp_target_flow) {
         if (sample_volume < 0) {
             sample_volume = 0;
         }
-        fprintf(fp_target_flow, "%u\t%u\t%u\n", p_flow->srcip, all_volume, sample_volume);
+        char buf[100];
+        snprintf(buf, 100, "%u\t%u\t%u\n", p_flow->srcip, all_volume, sample_volume);
+        DEBUG(buf);
     }
 }
 
@@ -58,29 +63,34 @@ void* rotate_interval(void* param) {
     //sleep two second
     sleep(2);
 
+    //open target flow infor file
+    FILE* fp_target_flow = init_target_flow_file();
+    if (fp_target_flow == NULL) {
+        printf("FAIL: init_target_flow_file\n");
+        return NULL;
+    }
+
     while (true) {
         /* all switches start/end at the nearby timestamp for intervals */
         /* postpone till switching to next time interval */
         uint64_t current_sec = get_next_interval_start(CM_TIME_INTERVAL);
+        /* output time */
+        char time_str[100];
+        snprintf(time_str, 100, "current time:%lu\n", current_sec);
+        NOTICE(time_str);
 
         //1. rotate the data warehouse buffer
         data_ware_rotate_buffer();
 
         //2. store the target flow identities of the past interval into file
-        FILE* fp_target_flow = init_target_flow_file();
-        if (fp_target_flow == NULL) {
-            printf("FAIL: init_target_flow_file\n");
-            return NULL;
-        }
-
         write_target_flows_to_file(current_sec, fp_target_flow);
-
-        //close file
-        fclose(fp_target_flow);
 
         //3. reset the idel buffer of data warehouse
         data_warehouse_reset_noactive_buf();
     }
+
+    //close file
+    fclose(fp_target_flow);
 
     return NULL;
 }
