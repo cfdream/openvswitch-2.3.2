@@ -9,9 +9,6 @@
 #include "../../CM_testbed_code/public_lib/senderFIFOsManager.h"
 #include "../../CM_testbed_code/public_lib/mt_hashtable_kFlow_vInt.h"
 
-//set in lib/dpif-netlink.c:dpif_netlink_operate()
-char* cm_switch_name;
-
 FILE* init_target_flow_file(void);
 
 void write_target_flows_to_file(uint64_t current_sec, FILE* fp_target_flow);

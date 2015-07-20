@@ -16,16 +16,12 @@ FILE* init_target_flow_file(void) {
     }
     */
     //TODO: should be tested whether work or not
-    if (cm_switch_name == NULL) {
-        ERROR("FAIL: cm_switch_name == NULL\n");
-        return NULL; 
-    }
 
     //2. generate target_flow_fname, sampled_flow_fname
     char target_flow_fname[200];
     snprintf(target_flow_fname, 200, "%s%s%s", 
         CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX,
-        cm_switch_name, CM_RECEIVER_TARGET_FLOW_FNAME_SUFFIX);
+        "switchs.", CM_RECEIVER_TARGET_FLOW_FNAME_SUFFIX);
     //3. open target_flow_fname, sampled_flow_fname
     fp_target_flows = fopen(target_flow_fname, "a+");
     if (fp_target_flows == NULL) {

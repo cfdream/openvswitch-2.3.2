@@ -1,14 +1,17 @@
 #include <config.h>
 #include <arpa/inet.h>
 #include "lib/unaligned.h"
+#include "lib/dpif-provider.h"
+#include "debug_output.h"
 #include "packet_processor.h"
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"
 
-VLOG_DEFINE_THIS_MODULE(packet_processor);
+uint8_t SRC_DST_MAC[6] = {0x7c, 0x7a, 0x91, 0x86, 0xb3, 0xe8};
 
 uint32_t g_received_pkt_num = 0;
+pthread_t interval_rotate_thread;
 
 bool packet_sampled(struct eth_header *eh) {
     if (!eh) {
@@ -22,20 +25,49 @@ bool packet_sampled(struct eth_header *eh) {
     return false;
 }
 
-pthread_t interval_rotate_thread;
 
-void process(struct dpif_execute *execute){
+/**
+* @brief 
+*
+* @param execute
+* @param dpif
+*
+* @return >=0 switchid, -1: fail
+*/
+int get_switch_id(struct dpif_execute *execute, const struct dpif *dpif){
+    if (execute == NULL || dpif == NULL) {
+        return -1;
+    }
+    //get inport id for the pkt
+    odp_port_t in_port = execute->packet->md.in_port.odp_port;
+
+    //get port infor from port id
+    if (dpif->dpif_class == NULL) {
+        return -1;
+    }
+    struct dpif_port port;
+    dpif->dpif_class->port_query_by_number( dpif, in_port, &port);
+    
+    //get switch id from port infor
+    int switch_id = atoi(port.name+1);
+
+    char buf[100];
+    snprintf(buf, 100, "in_port:%d, type:%s, name:%s, switch_id:%d", in_port, port.type, port.name, switch_id);
+    CM_DEBUG(switch_id, buf); 
+    return switch_id;
+}
+
+void process(struct dpif_execute *execute, const struct dpif* dpif){
     uint16_t ether_type;
     //pkt_len, allocated_len
     uint32_t pkt_len;  //bytes in use
     uint32_t allocated_len;  //allocated
     packet_t packet;
     char buf[200];
-    
+
     //the number of packets received ++
     g_received_pkt_num++; 
     
-    //*
     //init for conditional measurement
     if (g_received_pkt_num == 1) {
 
@@ -54,24 +86,25 @@ void process(struct dpif_execute *execute){
     //pkt_len, allocated_len
     pkt_len = execute->packet->size_;  //bytes in use
     allocated_len = execute->packet->allocated_;  //allocated
-    packet.len = allocated_len;
+    packet.len = pkt_len; //allocated_len = pkt_len + 4 (from debugging)
 
-    /*
-    struct vlan_eth_header *veh = dp_packet_l2(packet);
-    if (veh->veth_type != ETH_TYPE_VLAN) {
-        
-    }
-    */
+    //--------get switch id
+    int switch_id = get_switch_id(execute, dpif);
 
-    //l2 header
+    //----------l2 header
     if (execute->packet == NULL) {
-        DEBUG("packet is NULL");
+        return;
     }
     struct eth_header *eh = dp_packet_l2(execute->packet);
     if (eh == NULL) {
-        DEBUG("eth = NULL");
         return;
     }
+    if (!is_eth_addr_expected(eh->eth_dst) || !is_eth_addr_expected(eh->eth_src)) {
+        //MAC addressses not matched
+        return;
+    }
+    
+    //get ether_type
     ether_type = ntohs(eh->eth_type);
     if (eth_type_vlan(eh->eth_type)) {
         struct vlan_eth_header * vlan_eh = dp_packet_l2(execute->packet);
@@ -79,49 +112,51 @@ void process(struct dpif_execute *execute){
         packet.sampled = packet_sampled(eh);
     }
     if (ether_type != ETH_TYPE_IP) {
-        snprintf(buf, 200, "not ip pkt, ether_type:0x%04x", ether_type);
-        DEBUG(buf);
+        //not ip packet
         return;
     }
 
-    //l3 header, srcip, dstip, protocol
+    //---------l3 header, srcip, dstip, protocol
     struct ip_header *nh= dp_packet_l3(execute->packet);
-    packet.srcip = get_16aligned_be32(&nh->ip_src);
-    packet.dstip = get_16aligned_be32(&nh->ip_dst);
+    packet.srcip = ntohl_ovs(nh->ip_src);
+    packet.dstip = ntohl_ovs(nh->ip_dst);
     packet.protocol = nh->ip_proto;
 
     if (packet.protocol == 0x06) {
         //TCP packet, all are normal packets
-        DEBUG("normal pkt");
+        CM_DEBUG(switch_id, "normal packet"); 
         
-        //l4 header, src_port, dst_port
+        //--------l4 header, src_port, dst_port
         struct tcp_header* th = dp_packet_l4(execute->packet);
         packet.src_port = ntohs(th->tcp_src);
         packet.dst_port = ntohs(th->tcp_dst);
-        packet.seqid = get_16aligned_be32(&th->tcp_seq);
+        packet.seqid = ntohl_ovs(th->tcp_seq);
 
         //process the packet
         //process_normal_packet(&packet);
 
-        if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
-            packet.src_port == DEBUG_SPORT && packet.dst_port == DEBUG_DPORT) {
+        //if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
+        //    packet.src_port == DEBUG_SPORT && packet.dst_port == DEBUG_DPORT) {
                 char src_str[100];
                 char dst_str[100];
                 ip_to_str(packet.srcip, src_str, 100);
                 ip_to_str(packet.dstip, dst_str, 100);
 
-                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u-len:%u-%u]\n", 
-                    src_str, dst_str, 
-                    packet.src_port, packet.dst_port, packet.seqid, pkt_len, allocated_len);
-                DEBUG(buf);
-        }
+                //snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u]\n", 
+                //    src_str, dst_str, 
+                //    packet.src_port, packet.dst_port,
+                //    packet.seqid, pkt_len, allocated_len,
+                //    switch_id, g_received_pkt_num);
+                //CM_DEBUG(switch_id, buf);
+                //DEBUG(buf);
+        //}
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //process_condition_packet(&packet);
-        DEBUG("condition pkt");
+        CM_DEBUG(switch_id, "condition pkt");
     } else {
         snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
-        DEBUG(buf);
+        CM_DEBUG(switch_id, buf);
     }
 }
 
@@ -163,4 +198,20 @@ void process_condition_packet(packet_t* p_packet) {
     hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map();
     assert(target_flow_map != NULL);
     ht_kfs_vi_set(target_flow_map, &flow_key, 1);
+}
+
+uint32_t ntohl_ovs(ovs_16aligned_be32 x) {
+    return ((((uint32_t)(x.hi) & 0x0000ff00) << 8) | 
+        (((uint32_t)(x.hi) & 0x000000ff) << 24) | 
+        (((uint32_t)(x.lo) & 0x0000ff00) >> 8) | 
+        (((uint32_t)(x.lo) & 0x000000ff) << 8));
+}
+
+bool is_eth_addr_expected(uint8_t addr[ETH_ADDR_LEN]) {
+    for (int i = 0; i < ETH_ADDR_LEN; ++i) {
+        if (addr[i] ^ SRC_DST_MAC[i]) {
+            return false;
+        }
+    }
+    return true;
 }
