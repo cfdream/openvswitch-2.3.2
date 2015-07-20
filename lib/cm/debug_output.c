@@ -1,5 +1,6 @@
-#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
+#include <config.h>
 #include "debug_output.h"
+#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 
 pthread_mutex_t cm_debug_file_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t cm_notice_file_mutex = PTHREAD_MUTEX_INITIALIZER;
