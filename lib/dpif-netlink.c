@@ -54,6 +54,7 @@
 #include "unaligned.h"
 #include "util.h"
 #include "openvswitch/vlog.h"
+#include "cm/packet_processor.h"
 
 VLOG_DEFINE_THIS_MODULE(dpif_netlink);
 #ifdef _WIN32
@@ -1632,6 +1633,9 @@ dpif_netlink_operate__(struct dpif_netlink *dpif,
                 dpif_netlink_encode_execute(dpif->dp_ifindex, &op->u.execute,
                                             &aux->request);
             }
+            /* xuemei: get one packet*/
+            process(op->u.execute.packet, &dpif->dpif);
+            /* end xuemei */
             break;
 
         case DPIF_OP_FLOW_GET:
