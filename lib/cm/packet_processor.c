@@ -11,6 +11,10 @@
 uint8_t SRC_DST_MAC[6] = {0x7c, 0x7a, 0x91, 0x86, 0xb3, 0xe8};
 
 uint32_t g_received_pkt_num = 0;
+uint32_t cnt1 = 0;
+uint32_t cnt2 = 0;
+uint32_t cnt3 = 0;
+uint32_t cnt4 = 0;
 pthread_t interval_rotate_thread;
 
 bool packet_sampled(struct eth_header *eh) {
@@ -29,35 +33,36 @@ bool packet_sampled(struct eth_header *eh) {
 /**
 * @brief 
 *
-* @param execute
+* @param p_packet
 * @param dpif
 *
 * @return >=0 switchid, -1: fail
 */
-int get_switch_id(struct dpif_execute *execute, const struct dpif *dpif){
-    if (execute == NULL || dpif == NULL) {
+int get_switch_id(const struct dp_packet *p_packet, const struct dpif *dpif){
+    if (p_packet == NULL || dpif == NULL || dpif->dpif_class == NULL) {
         return -1;
     }
     //get inport id for the pkt
-    odp_port_t in_port = execute->packet->md.in_port.odp_port;
+    odp_port_t in_port = p_packet->md.in_port.odp_port;
 
     //get port infor from port id
-    if (dpif->dpif_class == NULL) {
-        return -1;
-    }
     struct dpif_port port;
     dpif->dpif_class->port_query_by_number( dpif, in_port, &port);
     
     //get switch id from port infor
     int switch_id = atoi(port.name+1);
 
-    char buf[100];
-    snprintf(buf, 100, "in_port:%d, type:%s, name:%s, switch_id:%d", in_port, port.type, port.name, switch_id);
-    CM_DEBUG(switch_id, buf); 
+    //char buf[100];
+    //snprintf(buf, 100, "in_port:%d, type:%s, name:%s, switch_id:%d", in_port, port.type, port.name, switch_id);
+    //CM_DEBUG(switch_id, buf); 
     return switch_id;
 }
 
-void process(struct dpif_execute *execute, const struct dpif* dpif){
+void process(const struct dp_packet *p_packet, const struct dpif* dpif){
+    if (p_packet == NULL || dpif == NULL) {
+        return;
+    }
+
     uint16_t ether_type;
     //pkt_len, allocated_len
     uint32_t pkt_len;  //bytes in use
@@ -70,7 +75,6 @@ void process(struct dpif_execute *execute, const struct dpif* dpif){
     
     //init for conditional measurement
     if (g_received_pkt_num == 1) {
-
         // init data_warehouse 
         if (data_warehouse_init() != 0) {
             printf("FAIL:data_warehouse_init\n");
@@ -84,30 +88,29 @@ void process(struct dpif_execute *execute, const struct dpif* dpif){
     }
 
     //pkt_len, allocated_len
-    pkt_len = execute->packet->size_;  //bytes in use
-    allocated_len = execute->packet->allocated_;  //allocated
+    pkt_len = p_packet->size_;  //bytes in use
+    allocated_len = p_packet->allocated_;  //allocated
     packet.len = pkt_len; //allocated_len = pkt_len + 4 (from debugging)
 
-    //--------get switch id
-    int switch_id = get_switch_id(execute, dpif);
-
     //----------l2 header
-    if (execute->packet == NULL) {
-        return;
-    }
-    struct eth_header *eh = dp_packet_l2(execute->packet);
+    cnt1++;
+    struct eth_header *eh = dp_packet_l2(p_packet);
     if (eh == NULL) {
         return;
     }
+    cnt2++;
     if (!is_eth_addr_expected(eh->eth_dst) || !is_eth_addr_expected(eh->eth_src)) {
         //MAC addressses not matched
+        //snprintf(buf, 200, "mac:%02x-%02x-%02x-%02x-%02x-%02x", 
+        //    eh->eth_dst[0], eh->eth_dst[1], eh->eth_dst[2], eh->eth_dst[3], eh->eth_dst[4], eh->eth_dst[5]);
+        //CM_DEBUG(switch_id, buf);
         return;
     }
     
     //get ether_type
     ether_type = ntohs(eh->eth_type);
     if (eth_type_vlan(eh->eth_type)) {
-        struct vlan_eth_header * vlan_eh = dp_packet_l2(execute->packet);
+        struct vlan_eth_header * vlan_eh = dp_packet_l2(p_packet);
         ether_type = ntohs(vlan_eh->veth_next_type);
         packet.sampled = packet_sampled(eh);
     }
@@ -115,19 +118,24 @@ void process(struct dpif_execute *execute, const struct dpif* dpif){
         //not ip packet
         return;
     }
+    cnt3++;
+
+    //--------get switch id
+    int switch_id = get_switch_id(p_packet, dpif);
 
     //---------l3 header, srcip, dstip, protocol
-    struct ip_header *nh= dp_packet_l3(execute->packet);
+    struct ip_header *nh= dp_packet_l3(p_packet);
     packet.srcip = ntohl_ovs(nh->ip_src);
     packet.dstip = ntohl_ovs(nh->ip_dst);
     packet.protocol = nh->ip_proto;
 
     if (packet.protocol == 0x06) {
+        cnt4++;
         //TCP packet, all are normal packets
         CM_DEBUG(switch_id, "normal packet"); 
         
         //--------l4 header, src_port, dst_port
-        struct tcp_header* th = dp_packet_l4(execute->packet);
+        struct tcp_header* th = dp_packet_l4(p_packet);
         packet.src_port = ntohs(th->tcp_src);
         packet.dst_port = ntohs(th->tcp_dst);
         packet.seqid = ntohl_ovs(th->tcp_seq);
@@ -142,13 +150,14 @@ void process(struct dpif_execute *execute, const struct dpif* dpif){
                 ip_to_str(packet.srcip, src_str, 100);
                 ip_to_str(packet.dstip, dst_str, 100);
 
-                //snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u]\n", 
-                //    src_str, dst_str, 
-                //    packet.src_port, packet.dst_port,
-                //    packet.seqid, pkt_len, allocated_len,
-                //    switch_id, g_received_pkt_num);
-                //CM_DEBUG(switch_id, buf);
-                //DEBUG(buf);
+                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u-%u-%u-%u-%u]\n", 
+                    src_str, dst_str, 
+                    packet.src_port, packet.dst_port,
+                    packet.seqid, pkt_len, allocated_len,
+                    switch_id, g_received_pkt_num,
+                    cnt1, cnt2, cnt3, cnt4);
+                CM_DEBUG(switch_id, buf);
+                DEBUG(buf);
         //}
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets

@@ -12,11 +12,11 @@
 #define CONDITION_PACKET_DPORT 65535   //65535
 
 bool packet_sampled(struct eth_header *eh);
-void process(struct dpif_execute *execute, const struct dpif *dpif);
+void process(const struct dp_packet *packet, const struct dpif* dpif);
 void process_normal_packet(packet_t* packet);
 void process_condition_packet(packet_t* packet);
 
 uint32_t ntohl_ovs(ovs_16aligned_be32 x);
 bool is_eth_addr_expected(uint8_t addr[ETH_ADDR_LEN]);
-int get_switch_id(struct dpif_execute *execute, const struct dpif *dpif);
+int get_switch_id(const struct dp_packet *packet, const struct dpif *dpif);
 #endif

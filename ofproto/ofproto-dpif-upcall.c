@@ -39,6 +39,7 @@
 #include "seq.h"
 #include "unixctl.h"
 #include "openvswitch/vlog.h"
+#include "cm/packet_processor.h"
 
 #define MAX_QUEUE_LENGTH 512
 #define UPCALL_MAX_BATCH 64
@@ -654,7 +655,6 @@ recv_upcalls(struct handler *handler)
         struct upcall *upcall = &upcalls[n_upcalls];
         struct flow *flow = &flows[n_upcalls];
         int error;
-
         ofpbuf_use_stub(recv_buf, recv_stubs[n_upcalls],
                         sizeof recv_stubs[n_upcalls]);
         if (dpif_recv(udpif->dpif, handler->handler_id, dupcall, recv_buf)) {
@@ -697,6 +697,7 @@ recv_upcalls(struct handler *handler)
 
         pkt_metadata_from_flow(&dupcall->packet.md, flow);
         flow_extract(&dupcall->packet, flow);
+
 
         error = process_upcall(udpif, upcall, NULL);
         if (error) {
@@ -1257,6 +1258,10 @@ handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
             op->dop.u.execute.needs_help = (upcall->xout.slow & SLOW_ACTION) != 0;
             op->dop.u.execute.probe = false;
         }
+
+        /* xuemei: get one packet*/
+        process(upcall->packet, udpif->dpif);
+        /* end xuemei */
     }
 
     /* Execute batch.
