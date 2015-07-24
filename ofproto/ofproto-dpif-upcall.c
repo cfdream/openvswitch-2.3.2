@@ -1260,7 +1260,7 @@ handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
         }
 
         /* xuemei: get one packet*/
-        //process(upcall->packet, udpif->dpif);
+        process(upcall->packet, udpif->dpif);
         /* end xuemei */
     }
 

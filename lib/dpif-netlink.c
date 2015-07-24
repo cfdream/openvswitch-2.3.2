@@ -1634,7 +1634,7 @@ dpif_netlink_operate__(struct dpif_netlink *dpif,
                                             &aux->request);
             }
             /* xuemei: get one packet*/
-            process(op->u.execute.packet, &dpif->dpif);
+            //process(op->u.execute.packet, &dpif->dpif);
             /* end xuemei */
             break;
 

@@ -4771,8 +4771,8 @@ xlate_actions(struct xlate_in *xin, struct xlate_out *xout)
 
     ctx.xin = xin;
     ctx.xout = xout;
-    ctx.xout->slow = 0;
-    //ctx.xout->slow = SLOW_ACTION;
+    //ctx.xout->slow = 0;
+    ctx.xout->slow = SLOW_ACTION;
     ctx.xout->has_learn = false;
     ctx.xout->has_normal = false;
     ctx.xout->has_fin_timeout = false;

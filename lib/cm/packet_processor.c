@@ -14,7 +14,7 @@ uint32_t g_received_pkt_num = 0;
 uint32_t cnt1 = 0;
 uint32_t cnt2 = 0;
 uint32_t cnt3 = 0;
-uint32_t cnt4 = 0;
+uint32_t switch_recv_pkt_num[NUM_SWITCHES+1];
 pthread_t interval_rotate_thread;
 
 bool packet_sampled(struct eth_header *eh) {
@@ -85,6 +85,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
             printf("\nFailed: pthread_create rotate_interval\n");
             return;
         }
+        memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
     }
 
     //pkt_len, allocated_len
@@ -120,9 +121,6 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     }
     cnt3++;
 
-    //--------get switch id
-    int switch_id = get_switch_id(p_packet, dpif);
-
     //---------l3 header, srcip, dstip, protocol
     struct ip_header *nh= dp_packet_l3(p_packet);
     packet.srcip = ntohl_ovs(nh->ip_src);
@@ -130,9 +128,8 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     packet.protocol = nh->ip_proto;
 
     if (packet.protocol == 0x06) {
-        cnt4++;
         //TCP packet, all are normal packets
-        CM_DEBUG(switch_id, "normal packet"); 
+        //CM_DEBUG(switch_id, "normal packet"); 
         
         //--------l4 header, src_port, dst_port
         struct tcp_header* th = dp_packet_l4(p_packet);
@@ -142,15 +139,16 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
 
         //process the packet
         //process_normal_packet(&packet);
-
-        //if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
-        //    packet.src_port == DEBUG_SPORT && packet.dst_port == DEBUG_DPORT) {
+        
+        /*
+        if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
+            packet.src_port == DEBUG_SPORT && packet.dst_port == DEBUG_DPORT) {
                 char src_str[100];
                 char dst_str[100];
                 ip_to_str(packet.srcip, src_str, 100);
                 ip_to_str(packet.dstip, dst_str, 100);
 
-                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u-%u-%u-%u-%u]\n", 
+                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u-%u-%u-%u-%u]", 
                     src_str, dst_str, 
                     packet.src_port, packet.dst_port,
                     packet.seqid, pkt_len, allocated_len,
@@ -158,14 +156,28 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
                     cnt1, cnt2, cnt3, cnt4);
                 CM_DEBUG(switch_id, buf);
                 DEBUG(buf);
-        //}
+        }
+        */
+
+
+        //--------get switch id
+        int switch_id = get_switch_id(p_packet, dpif);
+        if (switch_id > NUM_SWITCHES) {
+            ERROR("switch_id>12");
+            return;
+        }
+        ++switch_recv_pkt_num[switch_id];
+        if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
+            snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
+            CM_DEBUG(switch_id, buf);
+        }
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //process_condition_packet(&packet);
-        CM_DEBUG(switch_id, "condition pkt");
+        //CM_DEBUG(switch_id, "condition pkt");
     } else {
-        snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
-        CM_DEBUG(switch_id, buf);
+        //snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
+        //CM_DEBUG(switch_id, buf);
     }
 }
 
