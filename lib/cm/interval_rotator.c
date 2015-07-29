@@ -1,57 +1,42 @@
 #include <config.h>
+#include "openvswitch/vlog.h"
+#include "cm_output.h"
+#include "interval_rotator.h"
 #include "../../CM_testbed_code/public_lib/time_library.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
-#include "openvswitch/vlog.h"
-#include "interval_rotator.h"
 
-FILE* init_target_flow_file(void) {
-    FILE* fp_target_flows;
-    //1. get switch name
-    /*need to test whether this works
-    //test result: switch cannot be got in this way
-    char hostname[100];
-    if (get_mininet_host_name(hostname, 100) != 0) {
-        printf("FAIL:get_mininet_host_name\n");
-        return NULL;
+void init_target_flow_files(void) {
+    char buffer[100];
+    snprintf(buffer, 100, "%s\t%s\t%s", "srcip", "volume_travel_through", "volume_sampled");
+    int switch_idx = 0;
+    for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        CM_OUTPUT(switch_idx+1, buffer);
     }
-    */
-    //TODO: should be tested whether work or not
-
-    //2. generate target_flow_fname, sampled_flow_fname
-    char target_flow_fname[200];
-    snprintf(target_flow_fname, 200, "%s%s%s", 
-        CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX,
-        "switchs.", CM_RECEIVER_TARGET_FLOW_FNAME_SUFFIX);
-    //3. open target_flow_fname, sampled_flow_fname
-    fp_target_flows = fopen(target_flow_fname, "a+");
-    if (fp_target_flows == NULL) {
-        char buf[100];
-        snprintf(buf, 100, "FAIL: fopen %s\n", target_flow_fname);
-        ERROR(buf);
-        return NULL;
-    }
-
-    fprintf(fp_target_flows, "%s\t%s\t%s\n", "srcip", "volume_travel_through", "volume_sampled");
-    return fp_target_flows;
 }
 
-void write_target_flows_to_file(uint64_t current_sec, FILE* fp_target_flow) {
-    fprintf(fp_target_flow, "time-%lu seconds\n", current_sec);
-    hashtable_kfs_vi_t* target_flow_map_pre_interval = data_warehouse_get_unactive_target_flow_map();
-    hashtable_kfs_vi_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map();
-    entry_kfs_vi_t ret_entry;
-    while (ht_kfs_vi_next(target_flow_map_pre_interval, &ret_entry) == 0) {
-        //get one target flow, output to file
-        flow_s* p_flow = ret_entry.key;
-        KEY_INT_TYPE all_volume = ret_entry.value;
-        //get the sampled volume of the flow
-        int sample_volume = ht_kfs_vi_fixSize_get(sample_flow_map_pre_interval, p_flow);
-        if (sample_volume < 0) {
-            sample_volume = 0;
+void write_target_flows_to_file(uint64_t current_sec) {
+    int switch_idx = 0;
+    char buf[100];
+    for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        snprintf(buf, 100, "time-%lu seconds", current_sec);
+        CM_OUTPUT(switch_idx+1, buf);
+    }
+    for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        hashtable_kfs_vi_t* target_flow_map_pre_interval = data_warehouse_get_unactive_target_flow_map(switch_idx);
+        hashtable_kfs_vi_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map(switch_idx);
+        entry_kfs_vi_t ret_entry;
+        while (ht_kfs_vi_next(target_flow_map_pre_interval, &ret_entry) == 0) {
+            //get one target flow at the switch, output to file
+            flow_s* p_flow = ret_entry.key;
+            KEY_INT_TYPE all_volume = ret_entry.value;
+            //get the sampled volume of the flow
+            int sample_volume = ht_kfs_vi_fixSize_get(sample_flow_map_pre_interval, p_flow);
+            if (sample_volume < 0) {
+                sample_volume = 0;
+            }
+            snprintf(buf, 100, "%u\t%u\t%u", p_flow->srcip, all_volume, sample_volume);
+            CM_OUTPUT(switch_idx+1, buf);
         }
-        char buf[100];
-        snprintf(buf, 100, "%u\t%u\t%u\n", p_flow->srcip, all_volume, sample_volume);
-        DEBUG(buf);
     }
 }
 
@@ -59,12 +44,7 @@ void* rotate_interval(void* param) {
     //sleep two second
     sleep(2);
 
-    //open target flow infor file
-    FILE* fp_target_flow = init_target_flow_file();
-    if (fp_target_flow == NULL) {
-        printf("FAIL: init_target_flow_file\n");
-        return NULL;
-    }
+    init_target_flow_files();
 
     while (true) {
         /* all switches start/end at the nearby timestamp for intervals */
@@ -79,14 +59,11 @@ void* rotate_interval(void* param) {
         data_ware_rotate_buffer();
 
         //2. store the target flow identities of the past interval into file
-        write_target_flows_to_file(current_sec, fp_target_flow);
+        write_target_flows_to_file(current_sec);
 
         //3. reset the idel buffer of data warehouse
         data_warehouse_reset_noactive_buf();
     }
-
-    //close file
-    fclose(fp_target_flow);
 
     return NULL;
 }

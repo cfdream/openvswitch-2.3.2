@@ -9,9 +9,9 @@
 #include "../../CM_testbed_code/public_lib/senderFIFOsManager.h"
 #include "../../CM_testbed_code/public_lib/mt_hashtable_kFlow_vInt.h"
 
-FILE* init_target_flow_file(void);
+void init_target_flow_files(void);
 
-void write_target_flows_to_file(uint64_t current_sec, FILE* fp_target_flow);
+void write_target_flows_to_file(uint64_t current_sec);
 
 void* rotate_interval(void*);
 

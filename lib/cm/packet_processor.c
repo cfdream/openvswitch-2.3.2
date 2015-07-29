@@ -2,7 +2,7 @@
 #include <arpa/inet.h>
 #include "lib/unaligned.h"
 #include "lib/dpif-provider.h"
-#include "debug_output.h"
+#include "cm_output.h"
 #include "packet_processor.h"
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
@@ -127,6 +127,13 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     packet.dstip = ntohl_ovs(nh->ip_dst);
     packet.protocol = nh->ip_proto;
 
+    //--------get switch id
+    int switch_id = get_switch_id(p_packet, dpif);
+    if (switch_id > NUM_SWITCHES) {
+        ERROR("switch_id>12");
+        return;
+    }
+
     if (packet.protocol == 0x06) {
         //TCP packet, all are normal packets
         //CM_DEBUG(switch_id, "normal packet"); 
@@ -159,13 +166,6 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         }
         */
 
-
-        //--------get switch id
-        int switch_id = get_switch_id(p_packet, dpif);
-        if (switch_id > NUM_SWITCHES) {
-            ERROR("switch_id>12");
-            return;
-        }
         ++switch_recv_pkt_num[switch_id];
         if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
             snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
@@ -173,20 +173,21 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         }
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
-        //process_condition_packet(&packet);
         //CM_DEBUG(switch_id, "condition pkt");
+        process_condition_packet(switch_id, &packet);
     } else {
         //snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
         //CM_DEBUG(switch_id, buf);
+        process_normal_packet(switch_id, &packet);
     }
 }
 
-void process_normal_packet(packet_t* p_packet) {
+void process_normal_packet(int switch_id, packet_t* p_packet) {
     flow_src_t flow_key;
     flow_key.srcip = p_packet->srcip;
 
     /* 1. add flow's volume in groundtruth map */
-    hashtable_kfs_vi_t* flow_volume_map =  data_warehouse_get_flow_volume_map();
+    hashtable_kfs_vi_t* flow_volume_map =  data_warehouse_get_flow_volume_map(switch_id-1);
     assert(flow_volume_map != NULL);
     int ground_truth_volume = ht_kfs_vi_get(flow_volume_map, &flow_key);
     if (ground_truth_volume < 0) {
@@ -200,23 +201,24 @@ void process_normal_packet(packet_t* p_packet) {
         //if the packet not sampled, ignore the packet
         return;
     }
-    hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map();
+    hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id-1);
+    hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
     assert(flow_sample_map != NULL);
     int sample_volume = ht_kfs_vi_fixSize_get(flow_sample_map, &flow_key);
     if (sample_volume < 0) {
         sample_volume = 0;
     }
     sample_volume += p_packet->len;
-    ht_kfs_vi_fixSize_set(flow_sample_map, &flow_key, sample_volume);
+    ht_kfs_vi_fixSize_set(flow_sample_map, target_flow_map, &flow_key, sample_volume);
 }
 
-void process_condition_packet(packet_t* p_packet) {
+void process_condition_packet(int switch_id, packet_t* p_packet) {
     //record the condition information of the flow in condition_flow_map
     flow_src_t flow_key;
     flow_key.srcip = p_packet->srcip;
 
     //store in target map
-    hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map();
+    hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
     assert(target_flow_map != NULL);
     ht_kfs_vi_set(target_flow_map, &flow_key, 1);
 }

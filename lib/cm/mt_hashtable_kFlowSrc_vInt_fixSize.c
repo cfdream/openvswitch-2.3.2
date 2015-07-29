@@ -10,9 +10,9 @@
  * */
 
 #include <config.h>
-#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "data_warehouse.h"
 #include "mt_hashtable_kFlowSrc_vInt_fixSize.h"
+#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 
 /* 
 * @brief Create a new hashtable.
@@ -129,7 +129,7 @@ int ht_kfs_vi_fixSize_get( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t* ke
 }
 
 /* Insert a key-value pair into a hash table. */
-void ht_kfs_vi_fixSize_set( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *key, KEY_INT_TYPE value ) {
+void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_vi_t* target_flow_map, flow_src_t *key, KEY_INT_TYPE value) {
 	int bin = 0;
 	entry_kfs_vi_fixSize_t *newpair = NULL;
 	entry_kfs_vi_fixSize_t *next = NULL;
@@ -154,7 +154,7 @@ void ht_kfs_vi_fixSize_set( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *k
             //another flow already exist
             //conflict happens
             if (CM_OPEN_REPLACE_MECHANISM
-                && is_target_flow(next->key)) {
+                && is_target_flow(target_flow_map, next->key)) {
                 //replay && the existing flow is_target_flow, 
                 /* keep the existing flow */
             } else {
@@ -203,9 +203,8 @@ void ht_kfs_vi_fixSize_del( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *k
     pthread_mutex_unlock(&hashtable->mutexs[bin]);
 }
 
-bool is_target_flow(flow_src_t* key) {
-    hashtable_kfs_vi_t* target_flow_sample = data_warehouse_get_target_flow_map();
-    if (ht_kfs_vi_get(target_flow_sample, key) < 0) {
+bool is_target_flow(hashtable_kfs_vi_t* target_flow_map, flow_src_t* key) {
+    if (ht_kfs_vi_get(target_flow_map, key) < 0) {
         return false;
     } else {
         return true;

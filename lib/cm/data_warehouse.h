@@ -4,6 +4,7 @@
 #include "../CM_testbed_code/public_lib/mt_hashtable_kFlow_vLinklist.h"
 #include "../CM_testbed_code/public_lib/mt_hashtable_kFlowSrc_vInt.h"
 #include "../CM_testbed_code/public_lib/mt_hashtable_kFlowSrc_vFloat.h"
+#include "../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "mt_hashtable_kFlowSrc_vInt_fixSize.h"
 
 #define BUFFER_NUM 2
@@ -16,11 +17,11 @@ typedef struct data_warehouse_s {
     int active_idx;
     //4 hashtables for recording flow properties
     //here are <srcip> flow
-    hashtable_kfs_vi_t* flow_volume_map[BUFFER_NUM];
-    hashtable_kfs_vi_t* target_flow_map[BUFFER_NUM];
+    hashtable_kfs_vi_t* flow_volume_map[BUFFER_NUM][NUM_SWITCHES];
+    hashtable_kfs_vi_t* target_flow_map[BUFFER_NUM][NUM_SWITCHES];
 
     /* 1 hashtable for sample and hold*/
-    hashtable_kfs_vi_fixSize_t* flow_sample_map[BUFFER_NUM];
+    hashtable_kfs_vi_fixSize_t* flow_sample_map[NUM_SWITCHES][BUFFER_NUM];
 }data_warehouse_t;
 
 data_warehouse_t data_warehouse;
@@ -45,13 +46,13 @@ void data_ware_rotate_buffer(void);
 */
 int data_warehouse_reset_noactive_buf(void);
 
-hashtable_kfs_vi_t* data_warehouse_get_flow_volume_map(void);
+hashtable_kfs_vi_t* data_warehouse_get_flow_volume_map(int switch_id);
 
-hashtable_kfs_vi_t* data_warehouse_get_target_flow_map(void);
+hashtable_kfs_vi_t* data_warehouse_get_target_flow_map(int switch_id);
 
-hashtable_kfs_vi_fixSize_t* data_warehouse_get_flow_sample_map(void);
+hashtable_kfs_vi_fixSize_t* data_warehouse_get_flow_sample_map(int switch_id);
 
-hashtable_kfs_vi_t* data_warehouse_get_unactive_target_flow_map(void);
+hashtable_kfs_vi_t* data_warehouse_get_unactive_target_flow_map(int switch_id);
 
-hashtable_kfs_vi_fixSize_t* data_warehouse_get_unactive_sample_flow_map(void);
+hashtable_kfs_vi_fixSize_t* data_warehouse_get_unactive_sample_flow_map(int switch_id);
 #endif

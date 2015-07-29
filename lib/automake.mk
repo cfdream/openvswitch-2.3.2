@@ -296,8 +296,8 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/cm/packet_processor.c \
 	lib/cm/global_data.h \
 	lib/cm/global_setting.h \
-	lib/cm/debug_output.h \
-	lib/cm/debug_output.c
+	lib/cm/cm_output.h \
+	lib/cm/cm_output.c
 
 if WIN32
 lib_libopenvswitch_la_SOURCES += \
