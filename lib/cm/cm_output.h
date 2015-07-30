@@ -24,6 +24,9 @@
 * @param switch_id real_switchid
 * @param buffer
 */
+void cm_request_mutex(pthread_mutex_t* p_mutex);
+void cm_release_mutex(pthread_mutex_t* p_mutex);
+
 void CM_DEBUG(int switch_id, const char* buffer);
 void CM_NOTICE(int switch_id, const char* buffer);
 void CM_WARNING(int switch_id, const char* buffer);

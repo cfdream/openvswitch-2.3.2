@@ -11,6 +11,8 @@
 #define CONDITION_PACKET_DIP 167837954 //10.1.1.2
 #define CONDITION_PACKET_DPORT 65535   //65535
 
+void cm_task_init(void);
+
 bool packet_sampled(struct eth_header *eh);
 void process(const struct dp_packet *packet, const struct dpif* dpif);
 void process_normal_packet(int switch_id, packet_t* packet);

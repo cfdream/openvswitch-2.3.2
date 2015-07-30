@@ -1,9 +1,11 @@
+
 #include <config.h>
 #include <arpa/inet.h>
 #include "lib/unaligned.h"
 #include "lib/dpif-provider.h"
 #include "cm_output.h"
 #include "packet_processor.h"
+#include "condition_rotator.h"
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"
@@ -16,6 +18,28 @@ uint32_t cnt2 = 0;
 uint32_t cnt3 = 0;
 uint32_t switch_recv_pkt_num[NUM_SWITCHES+1];
 pthread_t interval_rotate_thread;
+pthread_t condition_rotate_thread;
+
+void cm_task_init(void){
+    // init data_warehouse 
+    if (data_warehouse_init() != 0) {
+        ERROR("FAIL:data_warehouse_init");
+        return;
+    }
+    // interval rotate thread 
+    if (pthread_create(&interval_rotate_thread, NULL, rotate_interval, NULL)) {
+        ERROR("Failed: pthread_create rotate_interval");
+        return;
+    }
+
+    // condition rotate thread
+    if (pthread_create(&condition_rotate_thread, NULL, rotate_condition_buffers, NULL)) {
+        ERROR("FAIL: pthread_create condition_rotate_thread.");
+        return;
+    }
+
+    memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
+}
 
 bool packet_sampled(struct eth_header *eh) {
     if (!eh) {
@@ -75,23 +99,14 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     
     //init for conditional measurement
     if (g_received_pkt_num == 1) {
-        // init data_warehouse 
-        if (data_warehouse_init() != 0) {
-            printf("FAIL:data_warehouse_init\n");
-            return;
-        }
-        // interval rotate thread 
-        if (pthread_create(&interval_rotate_thread, NULL, rotate_interval, NULL)) {
-            printf("\nFailed: pthread_create rotate_interval\n");
-            return;
-        }
-        memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
+        cm_task_init();
     }
 
     //pkt_len, allocated_len
     pkt_len = p_packet->size_;  //bytes in use
     allocated_len = p_packet->allocated_;  //allocated
     packet.len = pkt_len; //allocated_len = pkt_len + 4 (from debugging)
+    UNUSED(allocated_len);
 
     //----------l2 header
     cnt1++;
@@ -214,11 +229,13 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
     //record the condition information of the flow in condition_flow_map
+    //NOTE: received condition is stored in inactive condition_flow_map, will be switches by condition_rotate_thread
+    //Refer to condition_rotator.c
     flow_src_t flow_key;
     flow_key.srcip = p_packet->srcip;
 
     //store in target map
-    hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
+    hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id-1);
     assert(target_flow_map != NULL);
     ht_kfs_vi_set(target_flow_map, &flow_key, 1);
 }

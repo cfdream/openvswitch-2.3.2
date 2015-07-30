@@ -297,7 +297,9 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/cm/global_data.h \
 	lib/cm/global_setting.h \
 	lib/cm/cm_output.h \
-	lib/cm/cm_output.c
+	lib/cm/cm_output.c \
+	lib/cm/condition_rotator.h \
+	lib/cm/condition_rotator.c
 
 if WIN32
 lib_libopenvswitch_la_SOURCES += \

@@ -15,13 +15,16 @@
 typedef struct data_warehouse_s {
     /*Following are 2-buffer hashtables*/
     int active_idx;
-    //4 hashtables for recording flow properties
-    //here are <srcip> flow
+    // flow ground truth volume map
     hashtable_kfs_vi_t* flow_volume_map[BUFFER_NUM][NUM_SWITCHES];
-    hashtable_kfs_vi_t* target_flow_map[BUFFER_NUM][NUM_SWITCHES];
+    // flow sampled volume map
+    hashtable_kfs_vi_fixSize_t* flow_sample_map[BUFFER_NUM][NUM_SWITCHES];
 
-    /* 1 hashtable for sample and hold*/
-    hashtable_kfs_vi_fixSize_t* flow_sample_map[NUM_SWITCHES][BUFFER_NUM];
+    // target flow map
+    int active_condition_idx;
+    hashtable_kfs_vi_t* target_flow_map[BUFFER_NUM][NUM_SWITCHES];
+    /* for multi-thread accessing */
+    pthread_mutex_t target_flow_map_mutex;
 }data_warehouse_t;
 
 data_warehouse_t data_warehouse;
@@ -36,15 +39,23 @@ int data_warehouse_init(void);
 /**
 * @brief call when need to switch to another buffer
 */
-void data_ware_rotate_buffer(void);
-
+void data_warehouse_rotate_buffer_idx(void);
 /**
-* @brief This should be called after data_ware_rotate_buffer() is called, and after non-active buffer is useless
+* @brief This should be called after data_warehouse_rotate_buffer_idx() is called, and after non-active buffer is useless
 *
 *
 * @return 0-succ, -1-fail
 */
 int data_warehouse_reset_noactive_buf(void);
+
+/**
+* @brief data_warehouse_rotate_condition_buffer_idx(), data_warehouse_reset_noactive_buf()
+* should use target_flow_map_mutex to control the access between two threads
+* IntervalRotator thread and ConditionRatator thread;
+* These two functions should be locked and unlocked simultaneously.
+*/
+void data_warehouse_rotate_condition_buffer_idx(void);
+int data_warehouse_reset_condition_inactive_buf(void);
 
 hashtable_kfs_vi_t* data_warehouse_get_flow_volume_map(int switch_id);
 
@@ -52,7 +63,10 @@ hashtable_kfs_vi_t* data_warehouse_get_target_flow_map(int switch_id);
 
 hashtable_kfs_vi_fixSize_t* data_warehouse_get_flow_sample_map(int switch_id);
 
+hashtable_kfs_vi_t* data_warehouse_get_unactive_flow_volume_map(int switch_id);
+
 hashtable_kfs_vi_t* data_warehouse_get_unactive_target_flow_map(int switch_id);
 
 hashtable_kfs_vi_fixSize_t* data_warehouse_get_unactive_sample_flow_map(int switch_id);
+
 #endif
