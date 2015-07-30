@@ -135,6 +135,7 @@ void get_switch_output_file(int switch_id, int level, char* fname, int fname_len
     } else if (level == NOTICE_ID) {
         snprintf(fname, fname_len, "%ss%d.notice", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
     } else if (level == OUTPUT_ID) {
+        snprintf(fname, fname_len, "%ss%d.result", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
     }
 }
 
