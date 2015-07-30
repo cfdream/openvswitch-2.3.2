@@ -35,7 +35,7 @@ void write_target_flows_to_file(uint64_t current_sec) {
 
             //get the ground truth volume of the flow
             int all_volume = ht_kfs_vi_get(flow_volume_map_pre_interval, p_flow);
-            if (ground_volume < 0) {
+            if (all_volume < 0) {
                 //the target flow has not travelled through the switch
                 //no need to write this flow to file
                 continue;
