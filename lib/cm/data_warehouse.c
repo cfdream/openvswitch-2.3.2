@@ -14,7 +14,7 @@ int data_warehouse_init(void) {
     int a_condition_idx = 0;
     int switch_idx = 0;
 
-    for (; a_idx < BUFFER_NUM; ++a_idx) {
+    for (; a_idx < BUFFER_NUM; ++a_idx, ++a_condition_idx) {
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
             data_warehouse.flow_volume_map[a_idx][switch_idx] = ht_kfs_vi_create();
             if (data_warehouse.flow_volume_map[a_idx][switch_idx] == NULL) {
@@ -89,6 +89,13 @@ int data_warehouse_reset_condition_inactive_buf(void) {
     int na_condition_idx = (data_warehouse.active_condition_idx + 1) % BUFFER_NUM;
     int switch_idx = 0;
     for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        // as ovs may write condition packets to inactive buf, the hashmap cannot be destoryed
+        // (The design is to make the ovs receive all condition pkts from senders, 
+        //  then rotate the buffer. However, there is chance that there are condition pkts after during the rotation)
+        //refreseh the inactive buffer
+        ht_kfs_vi_refresh(data_warehouse.target_flow_map[na_condition_idx][switch_idx]);
+
+        /*
         //destory the hashmap
         ht_kfs_vi_destory(data_warehouse.target_flow_map[na_condition_idx][switch_idx]);
         //recreate the hashmap
@@ -96,6 +103,7 @@ int data_warehouse_reset_condition_inactive_buf(void) {
         if (data_warehouse.target_flow_map[na_condition_idx][switch_idx] == NULL) {
             return -1;
         }
+        */
     }
     return 0;
 }

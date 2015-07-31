@@ -21,6 +21,7 @@ pthread_t interval_rotate_thread;
 pthread_t condition_rotate_thread;
 
 void cm_task_init(void){
+    DEBUG("start: cm_task_init");
     // init data_warehouse 
     if (data_warehouse_init() != 0) {
         ERROR("FAIL:data_warehouse_init");
@@ -39,6 +40,7 @@ void cm_task_init(void){
     }
 
     memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
+    DEBUG("end: cm_task_init");
 }
 
 bool packet_sampled(struct eth_header *eh) {
@@ -186,6 +188,9 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
             snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
             CM_DEBUG(switch_id, buf);
         }
+
+        /* process the normal packet */
+        process_normal_packet(switch_id, &packet);
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //CM_DEBUG(switch_id, "condition pkt");
@@ -193,7 +198,6 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     } else {
         //snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
         //CM_DEBUG(switch_id, buf);
-        process_normal_packet(switch_id, &packet);
     }
 }
 
@@ -216,6 +220,7 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
         //if the packet not sampled, ignore the packet
         return;
     }
+    DEBUG("packet sampled");
     hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id-1);
     hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
     assert(flow_sample_map != NULL);
@@ -228,6 +233,7 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
+    DEBUG("start: process_condition_packet");
     //record the condition information of the flow in condition_flow_map
     //NOTE: received condition is stored in inactive condition_flow_map, will be switches by condition_rotate_thread
     //Refer to condition_rotator.c
@@ -238,6 +244,7 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id-1);
     assert(target_flow_map != NULL);
     ht_kfs_vi_set(target_flow_map, &flow_key, 1);
+    DEBUG("end: process_condition_packet");
 }
 
 uint32_t ntohl_ovs(ovs_16aligned_be32 x) {
