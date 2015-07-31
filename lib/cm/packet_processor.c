@@ -50,6 +50,11 @@ bool packet_sampled(struct eth_header *eh) {
 
     if (eth_type_vlan(eh->eth_type)) {
         struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
+        /*
+        char buf[100];
+        snprintf(buf, 100, "veth_type:0x%04x, veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
+        DEBUG(buf);
+        */
         return vlan_eh->veth_tci & TAG_VLAN_VAL;
     }
     return false;
@@ -130,7 +135,6 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     if (eth_type_vlan(eh->eth_type)) {
         struct vlan_eth_header * vlan_eh = dp_packet_l2(p_packet);
         ether_type = ntohs(vlan_eh->veth_next_type);
-        packet.sampled = packet_sampled(eh);
     }
     if (ether_type != ETH_TYPE_IP) {
         //not ip packet
@@ -152,6 +156,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     }
 
     if (packet.protocol == 0x06) {
+        packet.sampled = packet_sampled(eh);
         //TCP packet, all are normal packets
         //CM_DEBUG(switch_id, "normal packet"); 
         
@@ -161,8 +166,8 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         packet.dst_port = ntohs(th->tcp_dst);
         packet.seqid = ntohl_ovs(th->tcp_seq);
 
-        //process the packet
-        //process_normal_packet(&packet);
+        /* process the normal packet */
+        process_normal_packet(switch_id, &packet);
         
         /*
         if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
@@ -172,12 +177,12 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
                 ip_to_str(packet.srcip, src_str, 100);
                 ip_to_str(packet.dstip, dst_str, 100);
 
-                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u-%u-%u-%u-%u]", 
+                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u-%u-%u-%u]", 
                     src_str, dst_str, 
                     packet.src_port, packet.dst_port,
                     packet.seqid, pkt_len, allocated_len,
                     switch_id, g_received_pkt_num,
-                    cnt1, cnt2, cnt3, cnt4);
+                    cnt1, cnt2, cnt3);
                 CM_DEBUG(switch_id, buf);
                 DEBUG(buf);
         }
@@ -188,9 +193,6 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
             snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
             CM_DEBUG(switch_id, buf);
         }
-
-        /* process the normal packet */
-        process_normal_packet(switch_id, &packet);
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //CM_DEBUG(switch_id, "condition pkt");
