@@ -222,7 +222,7 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
         //if the packet not sampled, ignore the packet
         return;
     }
-    DEBUG("packet sampled");
+    //CM_DEBUG(switch_id, "packet sampled");
     hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id-1);
     hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
     assert(flow_sample_map != NULL);
@@ -235,7 +235,9 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
-    DEBUG("start: process_condition_packet");
+    char buf[100];
+    snprintf(buf, 100, "condition srcip:%u", p_packet->srcip);
+    CM_DEBUG(switch_id, buf);
     //record the condition information of the flow in condition_flow_map
     //NOTE: received condition is stored in inactive condition_flow_map, will be switches by condition_rotate_thread
     //Refer to condition_rotator.c
@@ -246,7 +248,6 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     hashtable_kfs_vi_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id-1);
     assert(target_flow_map != NULL);
     ht_kfs_vi_set(target_flow_map, &flow_key, 1);
-    DEBUG("end: process_condition_packet");
 }
 
 uint32_t ntohl_ovs(ovs_16aligned_be32 x) {

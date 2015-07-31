@@ -18,10 +18,10 @@ void init_target_flow_files(void) {
 
 
 void write_target_flows_to_file(uint64_t current_sec) {
-    DEBUG("start: write_target_flows_to_file");
     int switch_idx = 0;
     char buf[100];
     for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        CM_DEBUG(switch_idx+1, "start: write_target_flows_to_file");
         snprintf(buf, 100, "time-%lu seconds", current_sec);
         CM_OUTPUT(switch_idx+1, buf);
     }
@@ -51,7 +51,9 @@ void write_target_flows_to_file(uint64_t current_sec) {
             CM_OUTPUT(switch_idx+1, buf);
         }
     }
-    DEBUG("end: write_target_flows_to_file");
+    for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        CM_DEBUG(switch_idx+1, "end: write_target_flows_to_file");
+    }
 }
 
 void* rotate_interval(void* param) {
@@ -60,6 +62,7 @@ void* rotate_interval(void* param) {
     sleep(2);
 
     init_target_flow_files();
+    int switch_idx = 0;
 
     while (true) {
         /* all switches start/end at the nearby timestamp for intervals */
@@ -70,8 +73,10 @@ void* rotate_interval(void* param) {
 
         /* output time */
         char time_str[100];
-        snprintf(time_str, 100, "start: rotate_interval, current time:%lu", current_sec);
-        DEBUG(time_str);
+        snprintf(time_str, 100, "=====start: rotate_interval, current time:%lu=====", current_sec);
+        for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+            CM_DEBUG(switch_idx+1, time_str);
+        }
 
         //1. rotate normal buffer idx
         data_warehouse_rotate_buffer_idx();
@@ -87,7 +92,9 @@ void* rotate_interval(void* param) {
         data_warehouse_reset_condition_inactive_buf();
 
         pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
-        DEBUG("end: rotate_interval");
+        for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+            CM_DEBUG(switch_idx+1, "=====end: rotate_interval=====");
+        }
     }
 
     return NULL;

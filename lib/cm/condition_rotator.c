@@ -9,6 +9,9 @@
 
 void* rotate_condition_buffers(void* param) {
     UNUSED(param);
+    int switch_idx = 0;
+    struct timespec spec;
+    uint64_t sec;
     while (1) {
         /* postpone till the next timestamp that condition buffer needs to switch */
         uint64_t current_sec = get_next_interval_start(CM_CONDITION_TIME_INTERVAL);
@@ -16,15 +19,17 @@ void* rotate_condition_buffers(void* param) {
          * This is to make sure that the switches can receive all the condition information
          * This should be too large to make sure the condition infor is used at switches in time.
          * */
-        //sleep(CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH);
-        nanosleep(1000000*CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH, NULL);
+        sleep(CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH);
+        //nanosleep(1000000*CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH, NULL);
 
         pthread_mutex_lock(&data_warehouse.target_flow_map_mutex);
 
         /* output time */
         char time_str[100];
-        snprintf(time_str, 100, "start: rotate_condition_buffers, current time:%lu", current_sec);
-        DEBUG(time_str);
+        snprintf(time_str, 100, "-----start: rotate_condition_buffers, current time:%lu-----", current_sec);
+        for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+            CM_DEBUG(switch_idx+1, time_str);
+        }
 
         //1 rotate the condition buffer idx
         data_warehouse_rotate_condition_buffer_idx();
@@ -33,6 +38,12 @@ void* rotate_condition_buffers(void* param) {
         data_warehouse_reset_condition_inactive_buf();
 
         pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
-        DEBUG("end: rotate_condition_buffers");
+
+        clock_gettime(CLOCK_REALTIME, &spec);
+        sec = (intmax_t)((time_t)spec.tv_sec);
+        snprintf(time_str, 100, "-----end: rotate_condition_buffers, current time:%lu-----", sec);
+        for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+            CM_DEBUG(switch_idx+1, time_str);
+        }
     }
 }
