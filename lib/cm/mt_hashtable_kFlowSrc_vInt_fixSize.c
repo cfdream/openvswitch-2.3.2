@@ -73,7 +73,6 @@ void ht_kfs_vi_fixSize_destory( hashtable_kfs_vi_fixSize_t *hashtable ) {
 int ht_kfs_vi_fixSize_hash( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *key ) {
 	/* generate a 64-bit integer from srcip and dstip */
 	unsigned long long int hashval = key->srcip;
-    hashval = ((hashval << 32) | key->dstip) ^ key->src_port ^ key->dst_port;
 
 	return hashval % hashtable->size;
 }
