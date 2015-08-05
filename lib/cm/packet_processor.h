@@ -13,7 +13,7 @@
 
 void cm_task_init(void);
 
-bool packet_sampled(struct eth_header *eh);
+int packet_sampled(struct eth_header *eh);
 void process(const struct dp_packet *packet, const struct dpif* dpif);
 void process_normal_packet(int switch_id, packet_t* packet);
 void process_condition_packet(int switch_id, packet_t* packet);

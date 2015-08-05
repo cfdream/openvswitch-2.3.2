@@ -1,4 +1,3 @@
-
 #include <config.h>
 #include <arpa/inet.h>
 #include "lib/unaligned.h"
@@ -45,9 +44,10 @@ void cm_task_init(void){
     DEBUG("end: cm_task_init");
 }
 
-bool packet_sampled(struct eth_header *eh) {
+//0: not sampled, other: sampled
+int packet_sampled(struct eth_header *eh) {
     if (!eh) {
-        return false;
+        return 0;
     }
 
     if (eth_type_vlan(eh->eth_type)) {
@@ -59,7 +59,7 @@ bool packet_sampled(struct eth_header *eh) {
         */
         return vlan_eh->veth_tci & TAG_VLAN_VAL;
     }
-    return false;
+    return 0;
 }
 
 
@@ -200,12 +200,12 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
 }
 
 void process_normal_packet(int switch_id, packet_t* p_packet) {
-	++switch_recv_pkt_num[switch_id];
-	if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
-		char buf[200];
-		snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
-		CM_DEBUG(switch_id, buf);
-	}
+    ++switch_recv_pkt_num[switch_id];
+    if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
+        char buf[200];
+        snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
+        CM_DEBUG(switch_id, buf);
+    }
 
     flow_src_t flow_key;
     flow_key.srcip = p_packet->srcip;
@@ -219,7 +219,7 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
     }
     ground_truth_volume += p_packet->len;
     ht_kfs_vi_set(flow_volume_map, &flow_key, ground_truth_volume);
-
+    
     /* 2. add flow's vlume in sampled map if sampled */
     if (!p_packet->sampled) {
         //if the packet not sampled, ignore the packet
@@ -238,17 +238,17 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
-	++switch_recv_condition_pkt_num[switch_id];
-	if (!(switch_recv_condition_pkt_num[switch_id] % NUM_CONDITION_PKTS_TO_DEBUG)) {
-		char buf[200];
-		snprintf(buf, 200, "condition pkt received:%d", switch_recv_condition_pkt_num[switch_id]);
-		CM_DEBUG(switch_id, buf);
-	}
+    ++switch_recv_condition_pkt_num[switch_id];
+    if (!(switch_recv_condition_pkt_num[switch_id] % NUM_CONDITION_PKTS_TO_DEBUG)) {
+        char buf[200];
+        snprintf(buf, 200, "condition pkt received:%d", switch_recv_condition_pkt_num[switch_id]);
+        CM_DEBUG(switch_id, buf);
+    }
 
     //char buf[100];
     //snprintf(buf, 100, "condition srcip:%u", p_packet->srcip);
     //CM_DEBUG(switch_id, buf);
-	
+    
     //record the condition information of the flow in condition_flow_map
     //NOTE: received condition is stored in inactive condition_flow_map, will be switches by condition_rotate_thread
     //Refer to condition_rotator.c

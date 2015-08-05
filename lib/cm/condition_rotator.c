@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include "condition_rotator.h"
 #include "data_warehouse.h"
+#include "cm_output.h"
 #include "../../CM_testbed_code/public_lib/time_library.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"

@@ -52,6 +52,8 @@ hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(void);
 
 void ht_kfs_vi_fixSize_destory( hashtable_kfs_vi_fixSize_t *hashtable );
 
+void ht_kfs_vi_fixSize_refresh( hashtable_kfs_vi_fixSize_t *hashtable );
+
 /* Hash a string for a particular hash table. */
 int ht_kfs_vi_fixSize_hash( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *key );
 

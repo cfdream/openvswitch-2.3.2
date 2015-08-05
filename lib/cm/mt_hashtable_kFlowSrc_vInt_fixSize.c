@@ -69,6 +69,35 @@ void ht_kfs_vi_fixSize_destory( hashtable_kfs_vi_fixSize_t *hashtable ) {
     free(hashtable);
 }
 
+//Different from ht_kfs_vi_destory()
+//This will just clear the data in the hashtable, will not destory the hashmap
+void ht_kfs_vi_fixSize_refresh( hashtable_kfs_vi_fixSize_t *hashtable ) {
+    int i;
+    entry_kfs_vi_fixSize_t* p_node;
+
+    if (NULL == hashtable) {
+        DEBUG("hashtable == NULL");
+        return;
+    }
+    //free table
+    for (i = 0; i < hashtable->size; i++) {
+        // request lock
+        pthread_mutex_lock(&hashtable->mutexs[i]);
+
+        //delete all nodes in this bin
+        p_node = hashtable->table[i];
+        if (p_node) {
+            free(p_node->key);
+            free(p_node);
+        }
+        //set the bin to empty
+        hashtable->table[i] = NULL; 
+        //release lock
+        pthread_mutex_unlock(&hashtable->mutexs[i]);
+    }
+
+}
+
 /* Hash a string for a particular hash table. */
 int ht_kfs_vi_fixSize_hash( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *key ) {
 	/* generate a 64-bit integer from srcip and dstip */
