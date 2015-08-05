@@ -17,6 +17,7 @@ uint32_t cnt1 = 0;
 uint32_t cnt2 = 0;
 uint32_t cnt3 = 0;
 uint32_t switch_recv_pkt_num[NUM_SWITCHES+1];
+uint32_t switch_recv_condition_pkt_num[NUM_SWITCHES+1];
 pthread_t interval_rotate_thread;
 pthread_t condition_rotate_thread;
 
@@ -40,6 +41,7 @@ void cm_task_init(void){
     }
 
     memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
+    memset(switch_recv_condition_pkt_num, 0, sizeof(switch_recv_condition_pkt_num));
     DEBUG("end: cm_task_init");
 }
 
@@ -99,7 +101,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     uint32_t pkt_len;  //bytes in use
     uint32_t allocated_len;  //allocated
     packet_t packet;
-    char buf[200];
+    //char buf[200];
 
     //the number of packets received ++
     g_received_pkt_num++; 
@@ -187,12 +189,6 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
                 DEBUG(buf);
         }
         */
-
-        ++switch_recv_pkt_num[switch_id];
-        if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
-            snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
-            CM_DEBUG(switch_id, buf);
-        }
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //CM_DEBUG(switch_id, "condition pkt");
@@ -204,6 +200,13 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
 }
 
 void process_normal_packet(int switch_id, packet_t* p_packet) {
+	++switch_recv_pkt_num[switch_id];
+	if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
+		char buf[200];
+		snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
+		CM_DEBUG(switch_id, buf);
+	}
+
     flow_src_t flow_key;
     flow_key.srcip = p_packet->srcip;
 
@@ -235,9 +238,17 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
-    char buf[100];
-    snprintf(buf, 100, "condition srcip:%u", p_packet->srcip);
-    CM_DEBUG(switch_id, buf);
+	++switch_recv_condition_pkt_num[switch_id];
+	if (!(switch_recv_condition_pkt_num[switch_id] % NUM_CONDITION_PKTS_TO_DEBUG)) {
+		char buf[200];
+		snprintf(buf, 200, "condition pkt received:%d", switch_recv_condition_pkt_num[switch_id]);
+		CM_DEBUG(switch_id, buf);
+	}
+
+    //char buf[100];
+    //snprintf(buf, 100, "condition srcip:%u", p_packet->srcip);
+    //CM_DEBUG(switch_id, buf);
+	
     //record the condition information of the flow in condition_flow_map
     //NOTE: received condition is stored in inactive condition_flow_map, will be switches by condition_rotate_thread
     //Refer to condition_rotator.c

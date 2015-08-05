@@ -26,7 +26,7 @@ void* rotate_condition_buffers(void* param) {
 
         /* output time */
         char time_str[100];
-        snprintf(time_str, 100, "-----start: rotate_condition_buffers, current time:%lu-----", current_sec);
+        snprintf(time_str, 100, "-----Start: rotate_condition_buffers, current time:%lu-----", current_sec);
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
             CM_DEBUG(switch_idx+1, time_str);
         }
@@ -37,13 +37,13 @@ void* rotate_condition_buffers(void* param) {
         //2 reset the idle condition buffer
         data_warehouse_reset_condition_inactive_buf();
 
-        pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
-
         clock_gettime(CLOCK_REALTIME, &spec);
         sec = (intmax_t)((time_t)spec.tv_sec);
-        snprintf(time_str, 100, "-----end: rotate_condition_buffers, current time:%lu-----", sec);
+        snprintf(time_str, 100, "-----End: rotate_condition_buffers, current time:%lu-----", sec);
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
             CM_DEBUG(switch_idx+1, time_str);
         }
+
+        pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
     }
 }

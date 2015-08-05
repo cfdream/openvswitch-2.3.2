@@ -62,6 +62,8 @@ void* rotate_interval(void* param) {
     sleep(2);
 
     init_target_flow_files();
+    struct timespec spec;
+    uint64_t sec;
     int switch_idx = 0;
 
     while (true) {
@@ -73,7 +75,7 @@ void* rotate_interval(void* param) {
 
         /* output time */
         char time_str[100];
-        snprintf(time_str, 100, "=====start: rotate_interval, current time:%lu=====", current_sec);
+        snprintf(time_str, 100, "=====START: rotate_interval, current time:%lu=====", current_sec);
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
             CM_DEBUG(switch_idx+1, time_str);
         }
@@ -91,11 +93,13 @@ void* rotate_interval(void* param) {
         //3.1 reset the idle condition buffer
         data_warehouse_reset_condition_inactive_buf();
 
-        pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
+        clock_gettime(CLOCK_REALTIME, &spec);
+        sec = (intmax_t)((time_t)spec.tv_sec);
+        snprintf(time_str, 100, "=====END: rotate_interval, current time:%lu=====", sec);
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
-            CM_DEBUG(switch_idx+1, "=====end: rotate_interval=====");
+            CM_DEBUG(switch_idx+1, time_str);
         }
+        pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
     }
-
     return NULL;
 }
