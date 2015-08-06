@@ -1,5 +1,6 @@
 #include <config.h>
 #include "data_warehouse.h"
+#include "../../CM_testbed_code/public_lib/sample_setting.h"
 #include "../../CM_testbed_code/public_lib/time_library.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 
@@ -24,7 +25,7 @@ int data_warehouse_init(void) {
             if (data_warehouse.target_flow_map[a_condition_idx][switch_idx] == NULL) {
                 return -1;
             }
-            data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create();
+            data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(SH_HASHMAP_SIZE);
             if (data_warehouse.flow_sample_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }

@@ -32,10 +32,10 @@ typedef struct entry_kfs_vi_fixSize_s entry_kfs_vi_fixSize_t;
 
 struct hashtable_kfs_vi_fixSize_s {
 	int size;
-	struct entry_kfs_vi_fixSize_s *table[SH_HASHMAP_SIZE];
+	entry_kfs_vi_fixSize_t **table;
 
     /* for multi-thread accessing */
-    pthread_mutex_t mutexs[SH_HASHMAP_SIZE];
+    pthread_mutex_t mutexs[HASH_MAP_MUTEX_SIZE];
 };
 
 typedef struct hashtable_kfs_vi_fixSize_s hashtable_kfs_vi_fixSize_t;
@@ -48,7 +48,7 @@ typedef struct hashtable_kfs_vi_fixSize_s hashtable_kfs_vi_fixSize_t;
 *
 * @return 
 */
-hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(void);
+hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(int size);
 
 void ht_kfs_vi_fixSize_destory( hashtable_kfs_vi_fixSize_t *hashtable );
 

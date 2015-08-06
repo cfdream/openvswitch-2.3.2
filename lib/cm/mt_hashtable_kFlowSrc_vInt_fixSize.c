@@ -21,7 +21,7 @@
 *
 * @return 
 */
-hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(void) {
+hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(int size) {
 
 	hashtable_kfs_vi_fixSize_t *hashtable = NULL;
 	int i;
@@ -30,17 +30,17 @@ hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(void) {
 	if( ( hashtable = malloc( sizeof( hashtable_kfs_vi_fixSize_t ) ) ) == NULL ) {
 		return NULL;
 	}
+    hashtable->size = size;
+    hashtable->table = (entry_kfs_vi_fixSize_t **)malloc(sizeof(entry_kfs_vi_fixSize_t*) * hashtable->size);
 
-	for( i = 0; i < HASH_MAP_SIZE; i++ ) {
+	for( i = 0; i < hashtable->size; i++ ) {
 		hashtable->table[i] = NULL;
 	}
 
     /* initialize mutexs */
-    for (i = 0; i < HASH_MAP_SIZE; ++i) {
+    for (i = 0; i < HASH_MAP_MUTEX_SIZE; ++i) {
         pthread_mutex_init(&hashtable->mutexs[i], NULL);
     }
-
-	hashtable->size = HASH_MAP_SIZE;
 
 	return hashtable;	
 }
@@ -62,7 +62,7 @@ void ht_kfs_vi_fixSize_destory( hashtable_kfs_vi_fixSize_t *hashtable ) {
     }
 
     /* free mutexs */
-    for (i = 0; i < HASH_MAP_SIZE; ++i) {
+    for (i = 0; i < HASH_MAP_MUTEX_SIZE; ++i) {
         pthread_mutex_destroy(&hashtable->mutexs[i]);
     }
 
@@ -82,7 +82,7 @@ void ht_kfs_vi_fixSize_refresh( hashtable_kfs_vi_fixSize_t *hashtable ) {
     //free table
     for (i = 0; i < hashtable->size; i++) {
         // request lock
-        pthread_mutex_lock(&hashtable->mutexs[i]);
+        pthread_mutex_lock(&hashtable->mutexs[i%HASH_MAP_MUTEX_SIZE]);
 
         //delete all nodes in this bin
         p_node = hashtable->table[i];
@@ -93,7 +93,7 @@ void ht_kfs_vi_fixSize_refresh( hashtable_kfs_vi_fixSize_t *hashtable ) {
         //set the bin to empty
         hashtable->table[i] = NULL; 
         //release lock
-        pthread_mutex_unlock(&hashtable->mutexs[i]);
+        pthread_mutex_unlock(&hashtable->mutexs[i%HASH_MAP_MUTEX_SIZE]);
     }
 
 }
@@ -140,18 +140,18 @@ int ht_kfs_vi_fixSize_get( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t* ke
 	bin = ht_kfs_vi_fixSize_hash( hashtable, key );
 
     /* request mutex */
-    pthread_mutex_lock(&hashtable->mutexs[bin]);
+    pthread_mutex_lock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 
 	/* Step through the bin, looking for our value. */
 	pair = hashtable->table[ bin ];
 	/* Did we actually find anything? */
 	if( pair == NULL || pair->key == NULL || flow_src_compare( key, pair->key ) != 0 ) {
         /* release mutex */
-        pthread_mutex_unlock(&hashtable->mutexs[bin]);
+        pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 		return -1;
 	} else {
         /* release mutex */
-        pthread_mutex_unlock(&hashtable->mutexs[bin]);
+        pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 		return pair->value;
 	}
 }
@@ -169,7 +169,7 @@ void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_
 	bin = ht_kfs_vi_fixSize_hash( hashtable, key );
 
     /* request mutex */
-    pthread_mutex_lock(&hashtable->mutexs[bin]);
+    pthread_mutex_lock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 
 	next = hashtable->table[ bin ];
 
@@ -201,7 +201,7 @@ void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_
         hashtable->table[ bin ] = newpair;
 	}
     /* release mutex */
-    pthread_mutex_unlock(&hashtable->mutexs[bin]);
+    pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 }
 
 /* del a key-value pair from a hash table. */
@@ -216,7 +216,7 @@ void ht_kfs_vi_fixSize_del( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *k
 	bin = ht_kfs_vi_fixSize_hash( hashtable, key );
 
     /* request mutex */
-    pthread_mutex_lock(&hashtable->mutexs[bin]);
+    pthread_mutex_lock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 
 	next = hashtable->table[ bin ];
 
@@ -228,7 +228,7 @@ void ht_kfs_vi_fixSize_del( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *k
 	}
 
     /* release mutex */
-    pthread_mutex_unlock(&hashtable->mutexs[bin]);
+    pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 }
 
 bool is_target_flow(hashtable_kfs_vi_t* target_flow_map, flow_src_t* key) {
