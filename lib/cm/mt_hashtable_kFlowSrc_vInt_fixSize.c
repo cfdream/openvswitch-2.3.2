@@ -23,26 +23,26 @@
 */
 hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(int size) {
 
-	hashtable_kfs_vi_fixSize_t *hashtable = NULL;
-	int i;
+    hashtable_kfs_vi_fixSize_t *hashtable = NULL;
+    int i;
 
-	/* Allocate the table itself. */
-	if( ( hashtable = malloc( sizeof( hashtable_kfs_vi_fixSize_t ) ) ) == NULL ) {
-		return NULL;
-	}
+    /* Allocate the table itself. */
+    if( ( hashtable = malloc( sizeof( hashtable_kfs_vi_fixSize_t ) ) ) == NULL ) {
+        return NULL;
+    }
     hashtable->size = size;
     hashtable->table = (entry_kfs_vi_fixSize_t **)malloc(sizeof(entry_kfs_vi_fixSize_t*) * hashtable->size);
 
-	for( i = 0; i < hashtable->size; i++ ) {
-		hashtable->table[i] = NULL;
-	}
+    for( i = 0; i < hashtable->size; i++ ) {
+        hashtable->table[i] = NULL;
+    }
 
     /* initialize mutexs */
     for (i = 0; i < HASH_MAP_MUTEX_SIZE; ++i) {
         pthread_mutex_init(&hashtable->mutexs[i], NULL);
     }
 
-	return hashtable;	
+    return hashtable;    
 }
 
 void ht_kfs_vi_fixSize_destory( hashtable_kfs_vi_fixSize_t *hashtable ) {
@@ -100,25 +100,25 @@ void ht_kfs_vi_fixSize_refresh( hashtable_kfs_vi_fixSize_t *hashtable ) {
 
 /* Hash a string for a particular hash table. */
 int ht_kfs_vi_fixSize_hash( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *key ) {
-	/* generate a 64-bit integer from srcip and dstip */
-	unsigned long long int hashval = key->srcip;
+    /* generate a 64-bit integer from srcip and dstip */
+    unsigned long long int hashval = key->srcip;
 
-	return hashval % hashtable->size;
+    return hashval % hashtable->size;
 }
 
 /* Create a key-value pair. */
 entry_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_newpair( flow_src_t *key, KEY_INT_TYPE value ) {
-	entry_kfs_vi_fixSize_t *newpair;
+    entry_kfs_vi_fixSize_t *newpair;
 
-	if( ( newpair = malloc( sizeof( entry_kfs_vi_fixSize_t ) ) ) == NULL ) {
-		return NULL;
-	}
+    if( ( newpair = malloc( sizeof( entry_kfs_vi_fixSize_t ) ) ) == NULL ) {
+        return NULL;
+    }
 
     //copy the key and value
     newpair->key = deep_copy_flow(key);
     newpair->value = value;
 
-	return newpair;
+    return newpair;
 }
 
 /**
@@ -130,50 +130,50 @@ entry_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_newpair( flow_src_t *key, KEY_INT_TYPE
 * @return -1: key not exist in the hashtable, >=0 : value of the key
 */
 int ht_kfs_vi_fixSize_get( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t* key ) {
-	int bin = 0;
-	entry_kfs_vi_fixSize_t *pair;
+    int bin = 0;
+    entry_kfs_vi_fixSize_t *pair;
 
     if (NULL == hashtable) {
         return -1;
     }
 
-	bin = ht_kfs_vi_fixSize_hash( hashtable, key );
+    bin = ht_kfs_vi_fixSize_hash( hashtable, key );
 
     /* request mutex */
     pthread_mutex_lock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 
-	/* Step through the bin, looking for our value. */
-	pair = hashtable->table[ bin ];
-	/* Did we actually find anything? */
-	if( pair == NULL || pair->key == NULL || flow_src_compare( key, pair->key ) != 0 ) {
+    /* Step through the bin, looking for our value. */
+    pair = hashtable->table[ bin ];
+    /* Did we actually find anything? */
+    if( pair == NULL || pair->key == NULL || flow_src_compare( key, pair->key ) != 0 ) {
         /* release mutex */
         pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
-		return -1;
-	} else {
+        return -1;
+    } else {
         /* release mutex */
         pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
-		return pair->value;
-	}
+        return pair->value;
+    }
 }
 
 /* Insert a key-value pair into a hash table. */
 void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_vi_t* target_flow_map, flow_src_t *key, KEY_INT_TYPE value) {
-	int bin = 0;
-	entry_kfs_vi_fixSize_t *newpair = NULL;
-	entry_kfs_vi_fixSize_t *next = NULL;
+    int bin = 0;
+    entry_kfs_vi_fixSize_t *newpair = NULL;
+    entry_kfs_vi_fixSize_t *next = NULL;
 
     if (NULL == hashtable) {
         return;
     }
 
-	bin = ht_kfs_vi_fixSize_hash( hashtable, key );
+    bin = ht_kfs_vi_fixSize_hash( hashtable, key );
 
     /* request mutex */
     pthread_mutex_lock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 
-	next = hashtable->table[ bin ];
+    next = hashtable->table[ bin ];
 
-	if( next != NULL && next->key != NULL ) {
+    if( next != NULL && next->key != NULL ) {
         /* There's already a pair. */
         if (flow_src_compare( key, next->key ) == 0 ) {
             //the flow exist
@@ -195,37 +195,37 @@ void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_
                 hashtable->table[ bin ] = newpair;
             }
         }
-	/* The bin is empty */
-	} else {
-		newpair = ht_kfs_vi_fixSize_newpair( key, value );
+    /* The bin is empty */
+    } else {
+        newpair = ht_kfs_vi_fixSize_newpair( key, value );
         hashtable->table[ bin ] = newpair;
-	}
+    }
     /* release mutex */
     pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 }
 
 /* del a key-value pair from a hash table. */
 void ht_kfs_vi_fixSize_del( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *key) {
-	int bin = 0;
-	entry_kfs_vi_fixSize_t *next = NULL;
+    int bin = 0;
+    entry_kfs_vi_fixSize_t *next = NULL;
 
     if (NULL == hashtable) {
         return;
     }
 
-	bin = ht_kfs_vi_fixSize_hash( hashtable, key );
+    bin = ht_kfs_vi_fixSize_hash( hashtable, key );
 
     /* request mutex */
     pthread_mutex_lock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 
-	next = hashtable->table[ bin ];
+    next = hashtable->table[ bin ];
 
-	/* There's already a pair.  Let's del that entry. */
-	if( next != NULL && next->key != NULL && flow_src_compare( key, next->key ) == 0 ) {
+    /* There's already a pair.  Let's del that entry. */
+    if( next != NULL && next->key != NULL && flow_src_compare( key, next->key ) == 0 ) {
         free(next->key);
         free(next);
         hashtable->table[ bin ] = NULL;
-	}
+    }
 
     /* release mutex */
     pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
