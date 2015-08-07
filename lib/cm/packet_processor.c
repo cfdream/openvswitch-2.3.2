@@ -172,6 +172,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
 
         //--------payload: packet total length, including the packet header len
         // in tcpreplay, 4 bytes are used after the header to store the pkt len including the header len
+        // refer to CM_testbed_code:fa97a12c8e946d624f597571eba5b06a8dd20519
         char* pkt_buf = dp_packet_l4(p_packet) + sizeof(struct tcp_header);
         packet.len = *(int*)pkt_buf;
 
