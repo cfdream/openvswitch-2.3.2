@@ -112,10 +112,12 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     }
 
     //pkt_len, allocated_len
+    /*
     pkt_len = p_packet->size_;  //bytes in use
     allocated_len = p_packet->allocated_;  //allocated
     packet.len = pkt_len; //allocated_len = pkt_len + 4 (from debugging)
     UNUSED(allocated_len);
+    */
 
     //----------l2 header
     cnt1++;
@@ -168,6 +170,11 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         packet.dst_port = ntohs(th->tcp_dst);
         packet.seqid = ntohl_ovs(th->tcp_seq);
 
+        //--------payload: packet total length, including the packet header len
+        // in tcpreplay, 4 bytes are used after the header to store the pkt len including the header len
+        char* pkt_buf = dp_packet_l4(p_packet) + sizeof(struct tcp_header);
+        packet.len = *(int*)pkt_buf;
+
         /* process the normal packet */
         process_normal_packet(switch_id, &packet);
         
@@ -189,6 +196,9 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
                 DEBUG(buf);
         }
         */
+        //snprintf(buf, 200, "switch: flow[len1-%u-len2-%u-__packet_data-%u-%04x-%u ]", pkt_len, allocated_len, __packet_data(p_packet), packet.len, packet.len);
+        //DEBUG(buf);
+        
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //CM_DEBUG(switch_id, "condition pkt");
