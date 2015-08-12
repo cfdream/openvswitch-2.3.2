@@ -299,7 +299,9 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/cm/cm_output.h \
 	lib/cm/cm_output.c \
 	lib/cm/condition_rotator.h \
-	lib/cm/condition_rotator.c
+	lib/cm/condition_rotator.c \
+	lib/cm/packet_consecutive_drop_model.h \
+	lib/cm/packet_consecutive_drop_model.c
 
 if WIN32
 lib_libopenvswitch_la_SOURCES += \

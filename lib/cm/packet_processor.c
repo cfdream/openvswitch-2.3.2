@@ -4,6 +4,7 @@
 #include "lib/dpif-provider.h"
 #include "cm_output.h"
 #include "packet_processor.h"
+#include "packet_consecutive_drop_model.h"
 #include "condition_rotator.h"
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
@@ -38,6 +39,8 @@ void cm_task_init(void){
         ERROR("FAIL: pthread_create condition_rotate_thread.");
         return;
     }
+
+    init_packet_consecutive_drop_model();
 
     memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
     memset(switch_recv_condition_pkt_num, 0, sizeof(switch_recv_condition_pkt_num));
@@ -91,15 +94,16 @@ int get_switch_id(const struct dp_packet *p_packet, const struct dpif *dpif){
     return switch_id;
 }
 
-void process(const struct dp_packet *p_packet, const struct dpif* dpif){
+//return 0: packet not dropped, 1:packet dropped
+int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct drand48_data* p_rand_buffer) {
     if (p_packet == NULL || dpif == NULL) {
-        return;
+        return 0;
     }
 
     uint16_t ether_type;
     //pkt_len, allocated_len
-    uint32_t pkt_len;  //bytes in use
-    uint32_t allocated_len;  //allocated
+    //uint32_t pkt_len;  //bytes in use
+    //uint32_t allocated_len;  //allocated
     packet_t packet;
     //char buf[200];
 
@@ -123,7 +127,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     cnt1++;
     struct eth_header *eh = dp_packet_l2(p_packet);
     if (eh == NULL) {
-        return;
+        return 0;
     }
     cnt2++;
     if (!is_eth_addr_expected(eh->eth_dst) || !is_eth_addr_expected(eh->eth_src)) {
@@ -131,7 +135,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         //snprintf(buf, 200, "mac:%02x-%02x-%02x-%02x-%02x-%02x", 
         //    eh->eth_dst[0], eh->eth_dst[1], eh->eth_dst[2], eh->eth_dst[3], eh->eth_dst[4], eh->eth_dst[5]);
         //CM_DEBUG(switch_id, buf);
-        return;
+        return 0;
     }
     
     //get ether_type
@@ -142,7 +146,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     }
     if (ether_type != ETH_TYPE_IP) {
         //not ip packet
-        return;
+        return 0;
     }
     cnt3++;
 
@@ -156,7 +160,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
     int switch_id = get_switch_id(p_packet, dpif);
     if (switch_id > NUM_SWITCHES) {
         ERROR("switch_id>12");
-        return;
+        return 0;
     }
 
     if (packet.protocol == 0x06) {
@@ -173,11 +177,16 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         //--------payload: packet total length, including the packet header len
         // in tcpreplay, 4 bytes are used after the header to store the pkt len including the header len
         // refer to CM_testbed_code:fa97a12c8e946d624f597571eba5b06a8dd20519
-        char* pkt_buf = dp_packet_l4(p_packet) + sizeof(struct tcp_header);
+        char* pkt_buf = (char*)dp_packet_l4(p_packet) + sizeof(struct tcp_header);
         packet.len = *(int*)pkt_buf;
 
-        /* process the normal packet */
-        process_normal_packet(switch_id, &packet);
+        if(!drop_packet(switch_id-1, p_rand_buffer)) {
+            /* if packet not dropped, process the normal packet */
+            process_normal_packet(switch_id, &packet);
+        } else {
+            //packet dropped
+            return 1;
+        }
         
         /*
         if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
@@ -208,6 +217,7 @@ void process(const struct dp_packet *p_packet, const struct dpif* dpif){
         //snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
         //CM_DEBUG(switch_id, buf);
     }
+    return 0;
 }
 
 void process_normal_packet(int switch_id, packet_t* p_packet) {

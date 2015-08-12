@@ -14,7 +14,8 @@
 void cm_task_init(void);
 
 int packet_sampled(struct eth_header *eh);
-void process(const struct dp_packet *packet, const struct dpif* dpif);
+//return 0: packet not dropped, 1:packet dropped
+int process(const struct dp_packet *packet, const struct dpif* dpif, struct drand48_data* p_rand_buffer);
 void process_normal_packet(int switch_id, packet_t* packet);
 void process_condition_packet(int switch_id, packet_t* packet);
 

@@ -17,7 +17,9 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <inttypes.h>
+#include <gperftools/profiler.h>
 
 #include "connmgr.h"
 #include "coverage.h"
@@ -59,6 +61,7 @@ struct handler {
     struct udpif *udpif;               /* Parent udpif. */
     pthread_t thread;                  /* Thread ID. */
     uint32_t handler_id;               /* Handler id. */
+    struct drand48_data rand_buffer;
 };
 
 /* In the absence of a multiple-writer multiple-reader datastructure for
@@ -251,7 +254,7 @@ static struct ovs_list all_udpifs = OVS_LIST_INITIALIZER(&all_udpifs);
 static size_t recv_upcalls(struct handler *);
 static int process_upcall(struct udpif *, struct upcall *,
                           struct ofpbuf *odp_actions);
-static void handle_upcalls(struct udpif *, struct upcall *, size_t n_upcalls);
+static void handle_upcalls(struct udpif *, struct upcall *, size_t n_upcalls, struct drand48_data* p_rand_buffer);
 static void udpif_stop_threads(struct udpif *);
 static void udpif_start_threads(struct udpif *, size_t n_handlers,
                                 size_t n_revalidators);
@@ -449,6 +452,7 @@ udpif_start_threads(struct udpif *udpif, size_t n_handlers,
         for (i = 0; i < udpif->n_handlers; i++) {
             struct handler *handler = &udpif->handlers[i];
 
+            srand48_r(time(NULL), &(handler->rand_buffer));
             handler->udpif = udpif;
             handler->handler_id = i;
             handler->thread = ovs_thread_create(
@@ -715,7 +719,7 @@ free_dupcall:
     }
 
     if (n_upcalls) {
-        handle_upcalls(handler->udpif, upcalls, n_upcalls);
+        handle_upcalls(handler->udpif, upcalls, n_upcalls, &handler->rand_buffer);
         for (i = 0; i < n_upcalls; i++) {
             dp_packet_uninit(&dupcalls[i].packet);
             ofpbuf_uninit(&recv_bufs[i]);
@@ -1172,7 +1176,7 @@ process_upcall(struct udpif *udpif, struct upcall *upcall,
 
 static void
 handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
-               size_t n_upcalls)
+               size_t n_upcalls, struct drand48_data* p_rand_buffer)
 {
     struct dpif_op *opsp[UPCALL_MAX_BATCH * 2];
     struct ukey_op ops[UPCALL_MAX_BATCH * 2];
@@ -1201,6 +1205,17 @@ handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
         struct upcall *upcall = &upcalls[i];
         const struct dp_packet *packet = upcall->packet;
         struct ukey_op *op;
+        bool a = true;
+
+        /* xuemei: get one packet*/
+        int dropped = process(upcall->packet, udpif->dpif, p_rand_buffer);
+        if (dropped) {
+            //the packet is dropped, don't record this packet for future processing in ovs
+            //just drop it.
+            //only normal packets would be dropped
+            continue;
+        }
+        /* end xuemei */
 
         if (upcall->vsp_adjusted) {
             /* This packet was received on a VLAN splinter port.  We added a
@@ -1228,6 +1243,7 @@ handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
          *      to the recirculation ID. */
         if (may_put && upcall->type == DPIF_UC_MISS &&
             (!upcall->recirc || upcall->have_recirc_ref)) {
+            a = false;
             struct udpif_key *ukey = upcall->ukey;
 
             upcall->ukey_persists = true;
@@ -1246,6 +1262,10 @@ handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
             op->dop.u.flow_put.actions_len = ukey->actions->size;
         }
 
+        if (a) {
+            printf("aaa\n");
+        }
+
         if (upcall->xout.odp_actions->size) {
             op = &ops[n_ops++];
             op->ukey = NULL;
@@ -1258,10 +1278,6 @@ handle_upcalls(struct udpif *udpif, struct upcall *upcalls,
             op->dop.u.execute.needs_help = (upcall->xout.slow & SLOW_ACTION) != 0;
             op->dop.u.execute.probe = false;
         }
-
-        /* xuemei: get one packet*/
-        process(upcall->packet, udpif->dpif);
-        /* end xuemei */
     }
 
     /* Execute batch.
