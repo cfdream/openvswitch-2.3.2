@@ -24,7 +24,7 @@ int data_warehouse_init(void) {
                 max_switch_interval_volume = cm_experiment_setting.switches_interval_volume[switch_idx];
             }
         } 
-        max_switch_map_size = max_switch_interval_volume / TARGET_FLOW_VOLUME;
+        max_switch_map_size = DEFAULT_BYTE_SAMPLE_RATE * max_switch_interval_volume ;
         if (max_switch_map_size == 0) {
             ERROR("FAIL: max_switch_map_size=0");
             return -1;
@@ -46,7 +46,7 @@ int data_warehouse_init(void) {
             if (cm_experiment_setting.switch_mem_type == UNIFORM) {
                 data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(max_switch_map_size);
             } else if (cm_experiment_setting.switch_mem_type == DIVERSE) {
-                int map_size = cm_experiment_setting.switches_interval_volume[switch_idx] / TARGET_FLOW_VOLUME;
+                int map_size = DEFAULT_BYTE_SAMPLE_RATE * cm_experiment_setting.switches_interval_volume[switch_idx];
                 data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(map_size);
             }
             if (data_warehouse.flow_sample_map[a_idx][switch_idx] == NULL) {
