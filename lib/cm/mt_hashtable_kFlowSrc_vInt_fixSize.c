@@ -13,6 +13,9 @@
 #include "data_warehouse.h"
 #include "mt_hashtable_kFlowSrc_vInt_fixSize.h"
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
+#include "../../CM_testbed_code/public_lib/debug_output.h"
+
+extern cm_experiment_setting_t cm_experiment_setting;
 
 /* 
 * @brief Create a new hashtable.
@@ -181,7 +184,7 @@ void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_
         } else {
             //another flow already exist
             //conflict happens
-            if (CM_OPEN_REPLACE_MECHANISM
+            if (cm_experiment_setting.replacement
                 && is_target_flow(target_flow_map, next->key)) {
                 //replay && the existing flow is_target_flow, 
                 /* keep the existing flow */

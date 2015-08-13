@@ -7,6 +7,8 @@
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "packet_consecutive_drop_model.h"
 
+extern cm_experiment_setting_t cm_experiment_setting;
+
 uint64_t switches_ongoing_ms[NUM_SWITCHES]; //the ongoing millisecond
 bool switches_ms_randomed[NUM_SWITCHES];
 bool switches_ms_dropped[NUM_SWITCHES];
@@ -34,7 +36,7 @@ bool drop_packet(int switch_id, struct drand48_data* p_rand_buffer) {
         switches_ms_randomed[switch_id] = true;
         //rand number
         drand48_r(p_rand_buffer, &rand_float);    //[0,1)
-        if (rand_float < CM_SWITCH_DROP_RATE) {
+        if (rand_float < cm_experiment_setting.switch_drop_rate) {
             switches_ms_dropped[switch_id] = true;
         }
     }

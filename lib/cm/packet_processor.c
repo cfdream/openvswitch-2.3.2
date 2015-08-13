@@ -13,11 +13,10 @@
 uint8_t SRC_DST_MAC[6] = {0x7c, 0x7a, 0x91, 0x86, 0xb3, 0xe8};
 
 uint32_t g_received_pkt_num = 0;
-uint32_t cnt1 = 0;
-uint32_t cnt2 = 0;
-uint32_t cnt3 = 0;
 uint32_t switch_recv_pkt_num[NUM_SWITCHES+1];
+uint64_t switch_recv_volume[NUM_SWITCHES+1];
 uint32_t switch_recv_condition_pkt_num[NUM_SWITCHES+1];
+
 pthread_t interval_rotate_thread;
 pthread_t condition_rotate_thread;
 
@@ -43,6 +42,7 @@ void cm_task_init(void){
     init_packet_consecutive_drop_model();
 
     memset(switch_recv_pkt_num, 0, sizeof(switch_recv_pkt_num));
+    memset(switch_recv_volume, 0, sizeof(switch_recv_volume));
     memset(switch_recv_condition_pkt_num, 0, sizeof(switch_recv_condition_pkt_num));
     DEBUG("end: cm_task_init");
 }
@@ -124,12 +124,10 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
     */
 
     //----------l2 header
-    cnt1++;
     struct eth_header *eh = dp_packet_l2(p_packet);
     if (eh == NULL) {
         return 0;
     }
-    cnt2++;
     if (!is_eth_addr_expected(eh->eth_dst) || !is_eth_addr_expected(eh->eth_src)) {
         //MAC addressses not matched
         //snprintf(buf, 200, "mac:%02x-%02x-%02x-%02x-%02x-%02x", 
@@ -148,7 +146,6 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         //not ip packet
         return 0;
     }
-    cnt3++;
 
     //---------l3 header, srcip, dstip, protocol
     struct ip_header *nh= dp_packet_l3(p_packet);
@@ -196,12 +193,11 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
                 ip_to_str(packet.srcip, src_str, 100);
                 ip_to_str(packet.dstip, dst_str, 100);
 
-                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u-%u-%u-%u]", 
+                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u]", 
                     src_str, dst_str, 
                     packet.src_port, packet.dst_port,
                     packet.seqid, pkt_len, allocated_len,
-                    switch_id, g_received_pkt_num,
-                    cnt1, cnt2, cnt3);
+                    switch_id, g_received_pkt_num);
                 CM_DEBUG(switch_id, buf);
                 DEBUG(buf);
         }
@@ -222,9 +218,11 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
 
 void process_normal_packet(int switch_id, packet_t* p_packet) {
     ++switch_recv_pkt_num[switch_id];
+    switch_recv_volume[switch_id] += p_packet->len;
+
     if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
         char buf[200];
-        snprintf(buf, 200, "pkt received:%d", switch_recv_pkt_num[switch_id]);
+        snprintf(buf, 200, "pkt received:%d, recv_volume:%ld", switch_recv_pkt_num[switch_id], switch_recv_volume[switch_id]);
         CM_DEBUG(switch_id, buf);
     }
 

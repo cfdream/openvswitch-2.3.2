@@ -7,6 +7,9 @@
 #include "../../CM_testbed_code/public_lib/time_library.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"
+#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
+
+extern cm_experiment_setting_t cm_experiment_setting;
 
 void* rotate_condition_buffers(void* param) {
     UNUSED(param);
@@ -15,7 +18,7 @@ void* rotate_condition_buffers(void* param) {
     uint64_t sec;
     while (1) {
         /* postpone till the next timestamp that condition buffer needs to switch */
-        uint64_t current_sec = get_next_interval_start(CM_CONDITION_TIME_INTERVAL);
+        uint64_t current_sec = get_next_interval_start(cm_experiment_setting.condition_sec_freq);
         /* postpone CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH
          * This is to make sure that the switches can receive all the condition information
          * This should be too large to make sure the condition infor is used at switches in time.

@@ -6,6 +6,9 @@
 #include "../../CM_testbed_code/public_lib/time_library.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"
+#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
+
+extern cm_experiment_setting_t cm_experiment_setting;
 
 void init_target_flow_files(void) {
     char buffer[100];
@@ -69,7 +72,7 @@ void* rotate_interval(void* param) {
     while (true) {
         /* all switches start/end at the nearby timestamp for intervals */
         /* postpone till switching to next time interval */
-        uint64_t current_sec = get_next_interval_start(CM_TIME_INTERVAL);
+        uint64_t current_sec = get_next_interval_start(cm_experiment_setting.interval_sec_len);
 
         pthread_mutex_lock(&data_warehouse.target_flow_map_mutex);
 

@@ -1,8 +1,11 @@
 #include <config.h>
 #include "data_warehouse.h"
 #include "../../CM_testbed_code/public_lib/sample_setting.h"
+#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "../../CM_testbed_code/public_lib/time_library.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
+
+extern cm_experiment_setting_t cm_experiment_setting;
 
 /**
 * @brief init the data warehouse, at the beginning, only the first buffer should be initiliazed
@@ -11,10 +14,25 @@
 */
 int data_warehouse_init(void) {
     //set the initial buffer
-    int a_idx = 0;
-    int a_condition_idx = 0;
     int switch_idx = 0;
 
+    int max_switch_map_size = 0;
+    if (cm_experiment_setting.switch_mem_type == UNIFORM) {
+        uint64_t max_switch_interval_volume = 0;
+        for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+            if (cm_experiment_setting.switches_interval_volume[switch_idx] > max_switch_interval_volume) {
+                max_switch_interval_volume = cm_experiment_setting.switches_interval_volume[switch_idx];
+            }
+        } 
+        max_switch_map_size = max_switch_interval_volume / TARGET_FLOW_VOLUME;
+        if (max_switch_map_size == 0) {
+            ERROR("FAIL: max_switch_map_size=0");
+            return -1;
+        }
+    }
+
+    int a_idx = 0;  //active buffer idx
+    int a_condition_idx = 0;
     for (; a_idx < BUFFER_NUM; ++a_idx, ++a_condition_idx) {
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
             data_warehouse.flow_volume_map[a_idx][switch_idx] = ht_kfs_vi_create();
@@ -25,7 +43,12 @@ int data_warehouse_init(void) {
             if (data_warehouse.target_flow_map[a_condition_idx][switch_idx] == NULL) {
                 return -1;
             }
-            data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(SH_HASHMAP_SIZE);
+            if (cm_experiment_setting.switch_mem_type == UNIFORM) {
+                data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(max_switch_map_size);
+            } else if (cm_experiment_setting.switch_mem_type == DIVERSE) {
+                int map_size = cm_experiment_setting.switches_interval_volume[switch_idx] / TARGET_FLOW_VOLUME;
+                data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(map_size);
+            }
             if (data_warehouse.flow_sample_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
