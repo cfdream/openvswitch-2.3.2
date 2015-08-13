@@ -21,7 +21,7 @@
 #include <limits.h>
 #include <string.h>
 #include "../CM_testbed_code/public_lib/flow.h"
-#include "../CM_testbed_code/public_lib/target_flow_setting.h"
+#include "../CM_testbed_code/public_lib/cm_experiment_setting.h"
 
 struct entry_kfs_vi_fixSize_s {
 	flow_src_t *key;

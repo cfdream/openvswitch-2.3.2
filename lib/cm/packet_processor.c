@@ -9,6 +9,7 @@
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"
+#include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 
 uint8_t SRC_DST_MAC[6] = {0x7c, 0x7a, 0x91, 0x86, 0xb3, 0xe8};
 
@@ -22,6 +23,12 @@ pthread_t condition_rotate_thread;
 
 void cm_task_init(void){
     DEBUG("start: cm_task_init");
+
+    if(init_cm_experiment_setting() != 0) {
+        ERROR("FAIL: inti_cm_experiment_setting()");
+        return;
+    }
+
     // init data_warehouse 
     if (data_warehouse_init() != 0) {
         ERROR("FAIL:data_warehouse_init");
