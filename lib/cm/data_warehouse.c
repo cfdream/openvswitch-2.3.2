@@ -1,4 +1,5 @@
 #include <config.h>
+#include "cm_output.h"
 #include "data_warehouse.h"
 #include "../../CM_testbed_code/public_lib/sample_setting.h"
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
@@ -26,7 +27,7 @@ int data_warehouse_init(void) {
         } 
         max_switch_map_size = (int)(cm_experiment_setting.sample_hold_setting.default_byte_sampling_rate 
                                     * max_switch_interval_volume) ;
-        if (max_switch_map_size == 0) {
+        if (max_switch_map_size <= 0) {
             ERROR("FAIL: max_switch_map_size=0");
             return -1;
         }
@@ -50,10 +51,18 @@ int data_warehouse_init(void) {
                 int map_size = (int)(cm_experiment_setting.sample_hold_setting.default_byte_sampling_rate 
                                     * cm_experiment_setting.sample_hold_setting.switches_interval_volume[switch_idx]);
                 data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_vi_fixSize_create(map_size);
+                if (map_size <= 0) {
+                    ERROR("FAIL: map_size=0");
+                    return -1;
+                }
             }
             if (data_warehouse.flow_sample_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
+            char buf[200];
+            snprintf(buf, 200, "init: buf_idx_%d, switch_%d, sample_volume_map_size-%u", 
+                a_idx, switch_idx, data_warehouse.flow_sample_map[a_idx][switch_idx]->size);
+            CM_DEBUG(switch_idx, buf);
         }
     }
 

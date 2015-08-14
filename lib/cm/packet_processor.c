@@ -200,10 +200,10 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
                 ip_to_str(packet.srcip, src_str, 100);
                 ip_to_str(packet.dstip, dst_str, 100);
 
-                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-%u-switch_id:%d-pktid-%u]", 
+                snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-switch_id:%d-pktid-%u]", 
                     src_str, dst_str, 
                     packet.src_port, packet.dst_port,
-                    packet.seqid, pkt_len, allocated_len,
+                    packet.seqid, packet.len, 
                     switch_id, g_received_pkt_num);
                 CM_DEBUG(switch_id, buf);
                 DEBUG(buf);
