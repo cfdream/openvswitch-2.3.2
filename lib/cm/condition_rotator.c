@@ -26,7 +26,7 @@ void* rotate_condition_buffers(void* param) {
         sleep(CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH);
         //nanosleep(1000000*CM_CONDITION_TIME_INTERVAL_POSTPOINE_FOR_SWITCH, NULL);
 
-        pthread_mutex_lock(&data_warehouse.target_flow_map_mutex);
+        pthread_mutex_lock(&data_warehouse.condition_map_mutex);
 
         /* output time */
         char time_str[100];
@@ -48,6 +48,6 @@ void* rotate_condition_buffers(void* param) {
             CM_DEBUG(switch_idx+1, time_str);
         }
 
-        pthread_mutex_unlock(&data_warehouse.target_flow_map_mutex);
+        pthread_mutex_unlock(&data_warehouse.condition_map_mutex);
     }
 }

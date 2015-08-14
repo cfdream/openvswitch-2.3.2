@@ -11,7 +11,9 @@
 
 void init_target_flow_files(void);
 
-void write_target_flows_to_file(uint64_t current_sec);
+void write_interval_info_to_file(uint64_t current_sec);
+
+void write_target_flows_to_file(void);
 
 void* rotate_interval(void*);
 

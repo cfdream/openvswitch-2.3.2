@@ -37,11 +37,12 @@ int data_warehouse_init(void) {
     int a_condition_idx = 0;
     for (; a_idx < BUFFER_NUM; ++a_idx, ++a_condition_idx) {
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
+            //init hashtables
             data_warehouse.flow_volume_map[a_idx][switch_idx] = ht_kfs_vi_create();
             if (data_warehouse.flow_volume_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
-            data_warehouse.target_flow_map[a_condition_idx][switch_idx] = ht_kfs_vi_create();
+            data_warehouse.target_flow_map[a_condition_idx][switch_idx] = ht_kfs_vi_fixSize_create(DFAULT_CONDITION_MAP_SIZE);
             if (data_warehouse.target_flow_map[a_condition_idx][switch_idx] == NULL) {
                 return -1;
             }
@@ -62,11 +63,16 @@ int data_warehouse_init(void) {
             char buf[200];
             snprintf(buf, 200, "init: buf_idx_%d, switch_%d, sample_volume_map_size-%u", 
                 a_idx, switch_idx, data_warehouse.flow_sample_map[a_idx][switch_idx]->size);
-            CM_DEBUG(switch_idx, buf);
+            CM_DEBUG(switch_idx+1, buf);
+
+            //init interval infor
+            data_warehouse.pkt_num_rece[a_idx][switch_idx] = 0;
+            data_warehouse.volume_rece[a_idx][switch_idx] = 0;
+            data_warehouse.condition_pkt_num_rece[a_idx][switch_idx] = 0;
         }
     }
 
-    pthread_mutex_init(&data_warehouse.target_flow_map_mutex, NULL);
+    pthread_mutex_init(&data_warehouse.condition_map_mutex, NULL);
 
     data_warehouse.active_idx = 0;
     data_warehouse.active_condition_idx = 0;
@@ -98,6 +104,10 @@ int data_warehouse_reset_noactive_buf(void) {
         //refresh the hashmaps
         ht_kfs_vi_refresh(data_warehouse.flow_volume_map[na_idx][switch_idx]);
         ht_kfs_vi_fixSize_refresh(data_warehouse.flow_sample_map[na_idx][switch_idx]);
+        //refreshinterval infor
+        data_warehouse.pkt_num_rece[na_idx][switch_idx] = 0;
+        data_warehouse.volume_rece[na_idx][switch_idx] = 0;
+        data_warehouse.condition_pkt_num_rece[na_idx][switch_idx] = 0;
 
         /*
         //destory the hashmaps
@@ -134,13 +144,13 @@ int data_warehouse_reset_condition_inactive_buf(void) {
         // (The design is to make the ovs receive all condition pkts from senders, 
         //  then rotate the buffer. However, there is chance that there are condition pkts received after the rotation)
         //refreseh the inactive buffer
-        ht_kfs_vi_refresh(data_warehouse.target_flow_map[na_condition_idx][switch_idx]);
+        ht_kfs_vi_fixSize_refresh(data_warehouse.target_flow_map[na_condition_idx][switch_idx]);
 
         /*
         //destory the hashmap
-        ht_kfs_vi_destory(data_warehouse.target_flow_map[na_condition_idx][switch_idx]);
+        ht_kfs_vi_fixSize_destory(data_warehouse.target_flow_map[na_condition_idx][switch_idx]);
         //recreate the hashmap
-        data_warehouse.target_flow_map[na_condition_idx][switch_idx] = ht_kfs_vi_create();
+        data_warehouse.target_flow_map[na_condition_idx][switch_idx] = ht_kfs_vi_fixSize_create();
         if (data_warehouse.target_flow_map[na_condition_idx][switch_idx] == NULL) {
             return -1;
         }
@@ -159,7 +169,7 @@ int data_warehouse_reset_condition_inactive_buf(void) {
 hashtable_kfs_vi_t* data_warehouse_get_flow_volume_map(int switch_id) {
     return data_warehouse.flow_volume_map[data_warehouse.active_idx][switch_id];
 }
-hashtable_kfs_vi_t* data_warehouse_get_target_flow_map(int switch_id) {
+hashtable_kfs_vi_fixSize_t* data_warehouse_get_target_flow_map(int switch_id) {
     return data_warehouse.target_flow_map[data_warehouse.active_condition_idx][switch_id];
 }
 hashtable_kfs_vi_fixSize_t* data_warehouse_get_flow_sample_map(int switch_id) {
@@ -168,7 +178,7 @@ hashtable_kfs_vi_fixSize_t* data_warehouse_get_flow_sample_map(int switch_id) {
 hashtable_kfs_vi_t* data_warehouse_get_unactive_flow_volume_map(int switch_id){
     return data_warehouse.flow_volume_map[(data_warehouse.active_idx+1)%BUFFER_NUM][switch_id];
 }
-hashtable_kfs_vi_t* data_warehouse_get_unactive_target_flow_map(int switch_id) {
+hashtable_kfs_vi_fixSize_t* data_warehouse_get_unactive_target_flow_map(int switch_id) {
     return data_warehouse.target_flow_map[(data_warehouse.active_condition_idx+1)%BUFFER_NUM][switch_id];
 }
 hashtable_kfs_vi_fixSize_t* data_warehouse_get_unactive_sample_flow_map(int switch_id) {

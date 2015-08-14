@@ -34,6 +34,7 @@ hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(int size) {
         return NULL;
     }
     hashtable->size = size;
+    hashtable->collision_times = 0;
     hashtable->table = (entry_kfs_vi_fixSize_t **)malloc(sizeof(entry_kfs_vi_fixSize_t*) * hashtable->size);
 
     for( i = 0; i < hashtable->size; i++ ) {
@@ -44,6 +45,9 @@ hashtable_kfs_vi_fixSize_t *ht_kfs_vi_fixSize_create(int size) {
     for (i = 0; i < HASH_MAP_MUTEX_SIZE; ++i) {
         pthread_mutex_init(&hashtable->mutexs[i], NULL);
     }
+
+    /* initilized for ht_kfs_vi_fixSize_next() */
+    hashtable->next_current_bin = -1;
 
     return hashtable;    
 }
@@ -99,6 +103,9 @@ void ht_kfs_vi_fixSize_refresh( hashtable_kfs_vi_fixSize_t *hashtable ) {
         pthread_mutex_unlock(&hashtable->mutexs[i%HASH_MAP_MUTEX_SIZE]);
     }
 
+    hashtable->collision_times = 0;
+    /* refresh for ht_kfs_vi_fixSize_next() */
+    hashtable->next_current_bin = -1;
 }
 
 /* Hash a string for a particular hash table. */
@@ -160,7 +167,7 @@ int ht_kfs_vi_fixSize_get( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t* ke
 }
 
 /* Insert a key-value pair into a hash table. */
-void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_vi_t* target_flow_map, flow_src_t *key, KEY_INT_TYPE value) {
+void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_vi_fixSize_t* target_flow_map, flow_src_t *key, KEY_INT_TYPE value) {
     int bin = 0;
     entry_kfs_vi_fixSize_t *newpair = NULL;
     entry_kfs_vi_fixSize_t *next = NULL;
@@ -182,6 +189,7 @@ void ht_kfs_vi_fixSize_set(hashtable_kfs_vi_fixSize_t *hashtable, hashtable_kfs_
             //the flow exist
             next->value = value;
         } else {
+            ++hashtable->collision_times;
             //another flow already exist
             //conflict happens
             if (cm_experiment_setting.replacement
@@ -234,8 +242,58 @@ void ht_kfs_vi_fixSize_del( hashtable_kfs_vi_fixSize_t *hashtable, flow_src_t *k
     pthread_mutex_unlock(&hashtable->mutexs[bin%HASH_MAP_MUTEX_SIZE]);
 }
 
-bool is_target_flow(hashtable_kfs_vi_t* target_flow_map, flow_src_t* key) {
-    if (ht_kfs_vi_get(target_flow_map, key) < 0) {
+int ht_kfs_vi_fixSize_next(hashtable_kfs_vi_fixSize_t *hashtable, entry_kfs_vi_fixSize_t* ret_entry) {
+    if (NULL == hashtable) {
+        DEBUG("ht_kfs_vi_next(), hashtable==NULL");
+        return -1;
+    }
+    if (hashtable->next_current_bin >= hashtable->size) {
+        return -1;
+    }
+    
+    //iterator to the bin not empty
+    while (1) {
+        //go to next bin
+        hashtable->next_current_bin += 1;
+        if (hashtable->next_current_bin >= hashtable->size) {
+            //reset for next next() iteration
+            hashtable->next_current_bin = -1;
+            return -1;
+        }
+        
+        //check the bin
+        pthread_mutex_lock(&hashtable->mutexs[(hashtable->next_current_bin)%HASH_MAP_MUTEX_SIZE]);
+        entry_kfs_vi_fixSize_t* iterator = hashtable->table[hashtable->next_current_bin];
+        if (iterator != NULL) {
+            ret_entry->key = deep_copy_flow(iterator->key);
+            ret_entry->value = iterator->value;
+            pthread_mutex_unlock(&hashtable->mutexs[(hashtable->next_current_bin)%HASH_MAP_MUTEX_SIZE]);
+            break;
+        }
+        pthread_mutex_unlock(&hashtable->mutexs[(hashtable->next_current_bin)%HASH_MAP_MUTEX_SIZE]);
+    }
+    return 0;
+}
+
+hashtable_kfs_vi_fixSize_t* ht_kfs_vi_fixSize_copy(hashtable_kfs_vi_fixSize_t *source_hashtable) {
+    hashtable_kfs_vi_fixSize_t* ret_hashtable = ht_kfs_vi_fixSize_create(source_hashtable->size);
+    if (ret_hashtable == NULL) {
+        return NULL;
+    }
+
+    entry_kfs_vi_fixSize_t ret_entry;
+    while(ht_kfs_vi_fixSize_next(source_hashtable, &ret_entry) != -1) {
+        ht_kfs_vi_fixSize_set(ret_hashtable, NULL, ret_entry.key, ret_entry.value);
+        free(ret_entry.key);
+    }
+    return ret_hashtable;
+}
+
+bool is_target_flow(hashtable_kfs_vi_fixSize_t* target_flow_map, flow_src_t* key) {
+    if (target_flow_map == NULL) {
+        return false;
+    }
+    if (ht_kfs_vi_fixSize_get(target_flow_map, key) < 0) {
         return false;
     } else {
         return true;
