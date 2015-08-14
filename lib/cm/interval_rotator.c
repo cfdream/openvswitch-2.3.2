@@ -26,23 +26,23 @@ void init_target_flow_files(void) {
 void write_interval_info_to_file(uint64_t current_sec) {
     char buf[100];
     int switch_idx = 0;
+    int na_idx = (data_warehouse.active_idx+1)%BUFFER_NUM;
     for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
         CM_DEBUG(switch_idx+1, "start: write_target_flows_to_file");
         snprintf(buf, 100, "=====time-%lu seconds=====", current_sec);
         CM_OUTPUT(switch_idx+1, buf);
 
         hashtable_kfs_vi_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map(switch_idx);
-        hashtable_kfs_vi_fixSize_t* target_flow_map_pre_interval_pre_interval = data_warehouse_get_unactive_target_flow_map(switch_idx);
+        hashtable_kfs_vi_fixSize_t* target_flow_map_pre_interval = data_warehouse_get_unactive_target_flow_map(switch_idx);
         snprintf(buf, 100, "sample_hashmap_size:%u", sample_flow_map_pre_interval->size);
         CM_OUTPUT(switch_idx+1, buf);
-        snprintf(buf, 100, "condition_hashmap_size:%u", target_flow_map_pre_interval_pre_interval->size);
+        snprintf(buf, 100, "condition_hashmap_size:%u", target_flow_map_pre_interval->size);
         CM_OUTPUT(switch_idx+1, buf);
         snprintf(buf, 100, "sample_hashmap collision times:%u", sample_flow_map_pre_interval->collision_times);
         CM_OUTPUT(switch_idx+1, buf);
-        snprintf(buf, 100, "condition_hashmap collision times:%u", target_flow_map_pre_interval_pre_interval->collision_times);
+        snprintf(buf, 100, "condition_hashmap collision times:%u", data_warehouse.condition_map_collision_times[na_idx][switch_idx]);
         CM_OUTPUT(switch_idx+1, buf);
         
-        int na_idx = (data_warehouse.active_idx+1)%BUFFER_NUM;
         snprintf(buf, 100, "pkt_num_rece:%lu", data_warehouse.pkt_num_rece[na_idx][switch_idx]);
         CM_OUTPUT(switch_idx+1, buf);
         snprintf(buf, 100, "volume_rece:%lu", data_warehouse.volume_rece[na_idx][switch_idx]);
@@ -58,7 +58,7 @@ void write_target_flows_to_file(void) {
     for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
         hashtable_kfs_vi_t* flow_volume_map_pre_interval = data_warehouse_get_unactive_flow_volume_map(switch_idx);
         hashtable_kfs_vi_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map(switch_idx);
-        hashtable_kfs_vi_fixSize_t* target_flow_map_pre_interval_pre_interval = data_warehouse_get_unactive_target_flow_map(switch_idx);
+        hashtable_kfs_vi_fixSize_t* target_flow_map_pre_interval = data_warehouse_get_unactive_target_flow_map(switch_idx);
         //output every flow travelling through this switch
         entry_kfs_vi_t ret_entry;
         while (ht_kfs_vi_next(flow_volume_map_pre_interval, &ret_entry) == 0) {
@@ -67,8 +67,9 @@ void write_target_flows_to_file(void) {
             //get the sampled volume of the flow
             int sample_volume = ht_kfs_vi_fixSize_get(sample_flow_map_pre_interval, p_flow);
             //get whether this flow is marked as the target flow from received condition information
-            int is_signed_as_target_flow = ht_kfs_vi_fixSize_get(target_flow_map_pre_interval_pre_interval, p_flow);
-            snprintf(buf, 100, "%u\t%u\t%u\t%u", p_flow->srcip, all_volume, sample_volume, is_signed_as_target_flow);
+            int is_signed_as_target_flow = ht_kfs_vi_fixSize_get(target_flow_map_pre_interval, p_flow);
+            //-1: not exist in the hashmap
+            snprintf(buf, 100, "%u\t%d\t%d\t%d", p_flow->srcip, all_volume, sample_volume, is_signed_as_target_flow);
             CM_OUTPUT(switch_idx+1, buf);
 
             //free ret_entry.key
@@ -76,7 +77,7 @@ void write_target_flows_to_file(void) {
         }
         /*
         entry_kfs_vi_fixSize_t ret_entry;
-        while (ht_kfs_vi_fixSize_next(target_flow_map_pre_interval_pre_interval, &ret_entry) == 0) {
+        while (ht_kfs_vi_fixSize_next(target_flow_map_pre_interval, &ret_entry) == 0) {
             //get one target flow at the switch, output to file
             flow_s* p_flow = ret_entry.key;
 
@@ -135,7 +136,7 @@ void* rotate_interval(void* param) {
         data_warehouse_rotate_buffer_idx();
         //1.1 rotate the condition buffer idx
         data_warehouse_rotate_condition_buffer_idx();
-        //hashtable_kfs_vi_fixSize_t* copy_target_flow_map_pre_interval_pre_interval = ht_kfs_vi_fixSize_copy(target_flow_map_pre_interval_pre_interval);
+        //hashtable_kfs_vi_fixSize_t* copy_target_flow_map_pre_interval = ht_kfs_vi_fixSize_copy(target_flow_map_pre_interval);
 
         //2. store the target flow identities of the past interval into file
         write_interval_info_to_file(current_sec);
@@ -153,7 +154,7 @@ void* rotate_interval(void* param) {
             CM_DEBUG(switch_idx+1, time_str);
         }
         //destory the copied hashtable
-        //ht_kfs_vi_fixSize_destory(target_flow_map_pre_interval_pre_interval);
+        //ht_kfs_vi_fixSize_destory(copy_target_flow_map_pre_interval);
         pthread_mutex_unlock(&data_warehouse.condition_map_mutex);
     }
     return NULL;

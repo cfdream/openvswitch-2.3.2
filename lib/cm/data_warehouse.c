@@ -69,6 +69,7 @@ int data_warehouse_init(void) {
             data_warehouse.pkt_num_rece[a_idx][switch_idx] = 0;
             data_warehouse.volume_rece[a_idx][switch_idx] = 0;
             data_warehouse.condition_pkt_num_rece[a_idx][switch_idx] = 0;
+            data_warehouse.condition_map_collision_times[a_idx][switch_idx] = 0;
         }
     }
 
@@ -108,6 +109,7 @@ int data_warehouse_reset_noactive_buf(void) {
         data_warehouse.pkt_num_rece[na_idx][switch_idx] = 0;
         data_warehouse.volume_rece[na_idx][switch_idx] = 0;
         data_warehouse.condition_pkt_num_rece[na_idx][switch_idx] = 0;
+        data_warehouse.condition_map_collision_times[na_idx][switch_idx] = 0;
 
         /*
         //destory the hashmaps
@@ -140,6 +142,11 @@ int data_warehouse_reset_condition_inactive_buf(void) {
     int na_condition_idx = (data_warehouse.active_condition_idx + 1) % BUFFER_NUM;
     int switch_idx = 0;
     for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
+        //first, count collision times.
+        //Record in the active_idx buf, as interval_rotator thread will rotate.
+        data_warehouse.condition_map_collision_times[data_warehouse.active_idx][switch_idx] +=
+            data_warehouse.target_flow_map[na_condition_idx][switch_idx]->collision_times;
+
         // as ovs may write condition packets to inactive buf, the hashmap cannot be destoryed
         // (The design is to make the ovs receive all condition pkts from senders, 
         //  then rotate the buffer. However, there is chance that there are condition pkts received after the rotation)

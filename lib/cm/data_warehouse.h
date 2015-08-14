@@ -32,6 +32,11 @@ typedef struct data_warehouse_s {
     uint64_t pkt_num_rece[BUFFER_NUM][NUM_SWITCHES];
     uint64_t volume_rece[BUFFER_NUM][NUM_SWITCHES];
     uint64_t condition_pkt_num_rece[BUFFER_NUM][NUM_SWITCHES];
+
+    /* As condition_rotator thread always switch condition_map,
+     * add the counter here to count all collision times
+     */
+    uint64_t condition_map_collision_times[BUFFER_NUM][NUM_SWITCHES];
 }data_warehouse_t;
 
 data_warehouse_t data_warehouse;
