@@ -8,7 +8,7 @@
 #include "mt_hashtable_kFlowSrc_vInt_fixSize.h"
 
 #define BUFFER_NUM 2
-#define DFAULT_CONDITION_MAP_SIZE 3333
+#define DFAULT_CONDITION_MAP_SIZE 10240
 
 /**
 * @brief 
