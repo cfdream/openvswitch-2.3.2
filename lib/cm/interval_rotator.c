@@ -42,6 +42,8 @@ void write_interval_info_to_file(uint64_t current_sec) {
         CM_OUTPUT(switch_idx+1, buf);
         snprintf(buf, 100, "condition_hashmap collision times:%u", data_warehouse.condition_map_collision_times[na_idx][switch_idx]);
         CM_OUTPUT(switch_idx+1, buf);
+        snprintf(buf, 100, "condition_hashmap last rotate collision times:%u", data_warehouse.condition_map_last_rotate_collision_times[na_idx][switch_idx]);
+        CM_OUTPUT(switch_idx+1, buf);
         
         snprintf(buf, 100, "pkt_num_rece:%lu", data_warehouse.pkt_num_rece[na_idx][switch_idx]);
         CM_OUTPUT(switch_idx+1, buf);
