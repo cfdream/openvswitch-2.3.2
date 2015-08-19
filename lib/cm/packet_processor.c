@@ -8,6 +8,7 @@
 #include "condition_rotator.h"
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
+#include "../../CM_testbed_code/public_lib/sample_packet.h"
 #include "../../CM_testbed_code/public_lib/general_functions.h"
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 
@@ -54,8 +55,24 @@ void cm_task_init(void){
     DEBUG("end: cm_task_init");
 }
 
+int packet_sampled(struct eth_header* eh, packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id) {
+    if (cm_experiment_setting.host_or_switch_sample == HOST_SAMPLE) {
+        return host_packet_sampled(eh);
+    } else if (cm_experiment_setting.host_or_switch_sample == SWITCH_SAMPLE) {
+        return switch_packet_sampled(p_packet, p_rand_buffer, switch_id);
+    } else {
+        return -1;
+    }
+}
+
+int switch_packet_sampled(packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id) {
+    hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
+    hashtable_kfs_vi_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
+    return sample_packet_fixSize_map(p_packet, p_packet->len, p_rand_buffer, flow_sample_map, target_flow_map);
+}
+
 //0: not sampled, other: sampled
-int packet_sampled(struct eth_header *eh) {
+int host_packet_sampled(struct eth_header *eh) {
     if (!eh) {
         return 0;
     }
@@ -168,7 +185,6 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
     }
 
     if (packet.protocol == 0x06) {
-        packet.sampled = packet_sampled(eh);
         //TCP packet, all are normal packets
         //CM_DEBUG(switch_id, "normal packet"); 
         
@@ -183,6 +199,9 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         // refer to CM_testbed_code:fa97a12c8e946d624f597571eba5b06a8dd20519
         char* pkt_buf = (char*)dp_packet_l4(p_packet) + sizeof(struct tcp_header);
         packet.len = *(int*)pkt_buf;
+
+        //check pakcet is sample or not
+        packet.sampled = packet_sampled(eh, &packet, p_rand_buffer, switch_id-1);
 
         if(!drop_packet(switch_id-1, p_rand_buffer)) {
             /* if packet not dropped, process the normal packet */
