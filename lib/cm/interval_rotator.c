@@ -23,13 +23,13 @@ void init_target_flow_files(void) {
     }
 }
 
-void write_interval_info_to_file(uint64_t current_sec) {
+void write_interval_info_to_file(uint64_t current_msec) {
     char buf[100];
     int switch_idx = 0;
     int na_idx = (data_warehouse.active_idx+1)%BUFFER_NUM;
     for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
         CM_DEBUG(switch_idx+1, "start: write_target_flows_to_file");
-        snprintf(buf, 100, "=====time-%lu seconds=====", current_sec);
+        snprintf(buf, 100, "=====time-%lu milliseconds=====", current_msec);
         CM_OUTPUT(switch_idx+1, buf);
 
         hashtable_kfs_vi_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map(switch_idx);
@@ -40,9 +40,9 @@ void write_interval_info_to_file(uint64_t current_sec) {
         CM_OUTPUT(switch_idx+1, buf);
         snprintf(buf, 100, "sample_hashmap collision times:%u", sample_flow_map_pre_interval->collision_times);
         CM_OUTPUT(switch_idx+1, buf);
-        snprintf(buf, 100, "condition_hashmap collision times:%u", data_warehouse.condition_map_collision_times[na_idx][switch_idx]);
+        snprintf(buf, 100, "condition_hashmap collision times:%lu", data_warehouse.condition_map_collision_times[na_idx][switch_idx]);
         CM_OUTPUT(switch_idx+1, buf);
-        snprintf(buf, 100, "condition_hashmap last rotate collision times:%u", data_warehouse.condition_map_last_rotate_collision_times[na_idx][switch_idx]);
+        snprintf(buf, 100, "condition_hashmap last rotate collision times:%lu", data_warehouse.condition_map_last_rotate_collision_times[na_idx][switch_idx]);
         CM_OUTPUT(switch_idx+1, buf);
         
         snprintf(buf, 100, "pkt_num_rece:%lu", data_warehouse.pkt_num_rece[na_idx][switch_idx]);
@@ -120,7 +120,7 @@ void* rotate_interval(void* param) {
     while (true) {
         /* all switches start/end at the nearby timestamp for intervals */
         /* postpone till switching to next time interval */
-        uint64_t current_sec = get_next_interval_start(cm_experiment_setting.interval_sec_len);
+        uint64_t current_msec = get_next_interval_start(cm_experiment_setting.interval_msec_len);
 
         //0. get a copy of pre interval target_flow_map
         //As the write process will take time,
@@ -129,7 +129,7 @@ void* rotate_interval(void* param) {
 
         /* output time */
         char time_str[100];
-        snprintf(time_str, 100, "=====START: rotate_interval, current time:%lu=====", current_sec);
+        snprintf(time_str, 100, "=====START: rotate_interval, current time:%lu ms=====", current_msec);
         for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
             CM_DEBUG(switch_idx+1, time_str);
         }
@@ -141,7 +141,7 @@ void* rotate_interval(void* param) {
         //hashtable_kfs_vi_fixSize_t* copy_target_flow_map_pre_interval = ht_kfs_vi_fixSize_copy(target_flow_map_pre_interval);
 
         //2. store the target flow identities of the past interval into file
-        write_interval_info_to_file(current_sec);
+        write_interval_info_to_file(current_msec);
         write_target_flows_to_file();
 
         //3. reset the idel buffer of data warehouse
