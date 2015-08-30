@@ -5,7 +5,6 @@
 #include "cm_output.h"
 #include "packet_processor.h"
 #include "packet_consecutive_drop_model.h"
-#include "condition_rotator.h"
 #include "../../CM_testbed_code/public_lib/debug_config.h"
 #include "../../CM_testbed_code/public_lib/debug_output.h"
 #include "../../CM_testbed_code/public_lib/sample_packet.h"
@@ -41,11 +40,13 @@ void cm_task_init(void){
         return;
     }
 
+    /*
     // condition rotate thread
     if (pthread_create(&condition_rotate_thread, NULL, rotate_condition_buffers, NULL)) {
         ERROR("FAIL: pthread_create condition_rotate_thread.");
         return;
     }
+    */
 
     init_packet_consecutive_drop_model();
 
@@ -66,9 +67,10 @@ int packet_sampled(struct eth_header* eh, packet_t* p_packet, struct drand48_dat
 }
 
 int switch_packet_sampled(packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id) {
-    hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
-    hashtable_kfs_vi_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
-    return sample_packet_fixSize_map(p_packet, p_packet->len, p_rand_buffer, flow_sample_map, target_flow_map);
+    hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
+    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
+    //return sample_packet_fixSize_map(p_packet, p_packet->len, p_rand_buffer, flow_sample_map, target_flow_map);
+    return sample_packet_fixSize_map(p_packet, p_packet->len, p_rand_buffer, flow_sample_map);
 }
 
 //0: not sampled, other: sampled
@@ -84,11 +86,27 @@ int host_packet_sampled(struct eth_header *eh) {
         snprintf(buf, 100, "veth_type:0x%04x, veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
         DEBUG(buf);
         */
-        return vlan_eh->veth_tci & TAG_VLAN_VAL;
+        return vlan_eh->veth_tci & TAG_VLAN_PACKET_SAMPLED_VAL;
     }
     return 0;
 }
 
+bool get_target_flow_bit_val(struct eth_header *eh) {
+    if(!eh) {
+        return false;
+    }
+
+    if (eth_type_vlan(eh->eth_type)) {
+        struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
+        /*
+        char buf[100];
+        snprintf(buf, 100, "veth_type:0x%04x, veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
+        DEBUG(buf);
+        */
+        return vlan_eh->veth_tci & TAG_VLAN_TARGET_FLOW_VAL;
+    }
+    return 0;
+}
 
 /**
 * @brief 
@@ -111,6 +129,8 @@ int get_switch_id(const struct dp_packet *p_packet, const struct dpif *dpif){
     
     //get switch id from port infor
     int switch_id = atoi(port.name+1);
+    //FIX BUG: call dpif_port_destroy(), otherwise memory leakage
+    dpif_port_destroy(&port);
 
     //char buf[100];
     //snprintf(buf, 100, "in_port:%d, type:%s, name:%s, switch_id:%d", in_port, port.type, port.name, switch_id);
@@ -234,6 +254,10 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
     } else if (packet.protocol == 0x11) {
         //UDP packet, all are condition packets
         //CM_DEBUG(switch_id, "condition pkt");
+        
+        //check pakcet is sample or not
+        packet.is_target_flow = get_target_flow_bit_val(eh);
+
         process_condition_packet(switch_id, &packet);
     } else {
         //snprintf(buf, 200, "other pkt, protocol:0x%02x", packet.protocol);
@@ -273,15 +297,16 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
         return;
     }
     //CM_DEBUG(switch_id, "packet sampled");
-    hashtable_kfs_vi_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id-1);
-    hashtable_kfs_vi_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
+    hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id-1);
+    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
     assert(flow_sample_map != NULL);
-    int sample_volume = ht_kfs_vi_fixSize_get(flow_sample_map, &flow_key);
+    int sample_volume = ht_kfs_fixSize_get(flow_sample_map, &flow_key);
     if (sample_volume < 0) {
         sample_volume = 0;
     }
     sample_volume += p_packet->len;
-    ht_kfs_vi_fixSize_set(flow_sample_map, target_flow_map, &flow_key, sample_volume);
+    //ht_kfs_fixSize_set(flow_sample_map, target_flow_map, &flow_key, sample_volume);
+    ht_kfs_fixSize_set(flow_sample_map, &flow_key, sample_volume);
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
@@ -304,9 +329,13 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     flow_key.srcip = p_packet->srcip;
 
     //store in target map
-    hashtable_kfs_vi_fixSize_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id-1);
-    assert(target_flow_map != NULL);
-    ht_kfs_vi_fixSize_set(target_flow_map, NULL, &flow_key, 1);
+    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id-1);
+    //assert(target_flow_map != NULL);
+    //ht_kfs_fixSize_set(target_flow_map, NULL, &flow_key, 1);
+    
+    hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
+    assert(flow_sample_map != NULL);
+    ht_kfs_fixSize_set_target_flow(flow_sample_map, &flow_key, p_packet->is_target_flow);
 }
 
 uint32_t ntohl_ovs(ovs_16aligned_be32 x) {

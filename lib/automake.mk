@@ -296,8 +296,6 @@ lib_libopenvswitch_la_SOURCES = \
 	lib/cm/global_setting.h \
 	lib/cm/cm_output.h \
 	lib/cm/cm_output.c \
-	lib/cm/condition_rotator.h \
-	lib/cm/condition_rotator.c \
 	lib/cm/packet_consecutive_drop_model.h \
 	lib/cm/packet_consecutive_drop_model.c
 

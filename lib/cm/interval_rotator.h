@@ -7,7 +7,6 @@
 #include "data_warehouse.h"
 #include "../../CM_testbed_code/public_lib/cm_experiment_setting.h"
 #include "../../CM_testbed_code/public_lib/senderFIFOsManager.h"
-#include "../../CM_testbed_code/public_lib/mt_hashtable_kFlow_vInt.h"
 
 void init_target_flow_files(void);
 
