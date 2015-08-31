@@ -1,3 +1,8 @@
+/*
+ * NOTE: switch_id here should already be [0, NUM_SWITCHES)
+ *
+ * */
+
 #include <config.h>
 #include <arpa/inet.h>
 #include "lib/unaligned.h"
@@ -68,7 +73,7 @@ int packet_sampled(struct eth_header* eh, packet_t* p_packet, struct drand48_dat
 
 int switch_packet_sampled(packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id) {
     hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
-    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
+    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id);
     //return sample_packet_fixSize_map(p_packet, p_packet->len, p_rand_buffer, flow_sample_map, target_flow_map);
     return sample_packet_fixSize_map(p_packet, p_packet->len, p_rand_buffer, flow_sample_map);
 }
@@ -114,7 +119,7 @@ bool get_target_flow_bit_val(struct eth_header *eh) {
 * @param p_packet
 * @param dpif
 *
-* @return >0 [1-12] switchid, -1: fail
+* @return >=0 [0, NUM_SENDER-1] switchid, -1: fail
 */
 int get_switch_id(const struct dp_packet *p_packet, const struct dpif *dpif){
     if (p_packet == NULL || dpif == NULL || dpif->dpif_class == NULL) {
@@ -135,7 +140,7 @@ int get_switch_id(const struct dp_packet *p_packet, const struct dpif *dpif){
     //char buf[100];
     //snprintf(buf, 100, "in_port:%d, type:%s, name:%s, switch_id:%d", in_port, port.type, port.name, switch_id);
     //CM_DEBUG(switch_id, buf); 
-    return switch_id;
+    return switch_id-1;
 }
 
 //return 0: packet not dropped, 1:packet dropped
@@ -199,7 +204,7 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
 
     //--------get switch id
     int switch_id = get_switch_id(p_packet, dpif);
-    if (switch_id > NUM_SWITCHES) {
+    if (switch_id >= NUM_SWITCHES) {
         ERROR("switch_id>12");
         return 0;
     }
@@ -221,9 +226,9 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         packet.len = *(int*)pkt_buf;
 
         //check pakcet is sample or not
-        packet.sampled = packet_sampled(eh, &packet, p_rand_buffer, switch_id-1);
+        packet.sampled = packet_sampled(eh, &packet, p_rand_buffer, switch_id);
 
-        if(!drop_packet(switch_id-1, p_rand_buffer)) {
+        if(!drop_packet(switch_id, p_rand_buffer)) {
             /* if packet not dropped, process the normal packet */
             process_normal_packet(switch_id, &packet);
         } else {
@@ -267,14 +272,14 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
 }
 
 void process_normal_packet(int switch_id, packet_t* p_packet) {
-    ++switch_recv_pkt_num[switch_id-1];
-    switch_recv_volume[switch_id-1] += p_packet->len;
-    ++data_warehouse.pkt_num_rece[data_warehouse.active_idx][switch_id-1];
-    data_warehouse.volume_rece[data_warehouse.active_idx][switch_id-1] += p_packet->len;
+    ++switch_recv_pkt_num[switch_id];
+    switch_recv_volume[switch_id] += p_packet->len;
+    ++data_warehouse.pkt_num_rece[data_warehouse.active_idx][switch_id];
+    data_warehouse.volume_rece[data_warehouse.active_idx][switch_id] += p_packet->len;
 
-    if (!(switch_recv_pkt_num[switch_id-1] % NUM_PKTS_TO_DEBUG)) {
+    if (!(switch_recv_pkt_num[switch_id] % NUM_PKTS_TO_DEBUG)) {
         char buf[200];
-        snprintf(buf, 200, "pkt received:%d, recv_volume:%ld", switch_recv_pkt_num[switch_id-1], switch_recv_volume[switch_id-1]);
+        snprintf(buf, 200, "pkt received:%d, recv_volume:%ld", switch_recv_pkt_num[switch_id], switch_recv_volume[switch_id]);
         CM_DEBUG(switch_id, buf);
     }
 
@@ -282,7 +287,7 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
     flow_key.srcip = p_packet->srcip;
 
     /* 1. add flow's volume in groundtruth map */
-    hashtable_kfs_vi_t* flow_volume_map =  data_warehouse_get_flow_volume_map(switch_id-1);
+    hashtable_kfs_vi_t* flow_volume_map =  data_warehouse_get_flow_volume_map(switch_id);
     assert(flow_volume_map != NULL);
     int ground_truth_volume = ht_kfs_vi_get(flow_volume_map, &flow_key);
     if (ground_truth_volume < 0) {
@@ -297,24 +302,18 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
         return;
     }
     //CM_DEBUG(switch_id, "packet sampled");
-    hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id-1);
-    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id-1);
+    /* 3. for sampled packet, add the flow's volume in flow_sample_map */
+    hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
     assert(flow_sample_map != NULL);
-    int sample_volume = ht_kfs_fixSize_get(flow_sample_map, &flow_key);
-    if (sample_volume < 0) {
-        sample_volume = 0;
-    }
-    sample_volume += p_packet->len;
-    //ht_kfs_fixSize_set(flow_sample_map, target_flow_map, &flow_key, sample_volume);
-    ht_kfs_fixSize_set(flow_sample_map, &flow_key, sample_volume);
+    ht_kfs_fixSize_add_value(flow_sample_map, &flow_key, p_packet->len);
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
-    ++switch_recv_condition_pkt_num[switch_id-1];
-    ++data_warehouse.condition_pkt_num_rece[data_warehouse.active_idx][switch_id-1];
-    if (!(switch_recv_condition_pkt_num[switch_id-1] % NUM_CONDITION_PKTS_TO_DEBUG)) {
+    ++switch_recv_condition_pkt_num[switch_id];
+    ++data_warehouse.condition_pkt_num_rece[data_warehouse.active_idx][switch_id];
+    if (!(switch_recv_condition_pkt_num[switch_id] % NUM_CONDITION_PKTS_TO_DEBUG)) {
         char buf[200];
-        snprintf(buf, 200, "condition pkt received:%d", switch_recv_condition_pkt_num[switch_id-1]);
+        snprintf(buf, 200, "condition pkt received:%d", switch_recv_condition_pkt_num[switch_id]);
         CM_DEBUG(switch_id, buf);
     }
 
@@ -329,7 +328,7 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     flow_key.srcip = p_packet->srcip;
 
     //store in target map
-    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id-1);
+    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id);
     //assert(target_flow_map != NULL);
     //ht_kfs_fixSize_set(target_flow_map, NULL, &flow_key, 1);
     

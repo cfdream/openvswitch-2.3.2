@@ -67,7 +67,7 @@ int data_warehouse_init(void) {
             char buf[200];
             snprintf(buf, 200, "init: buf_idx_%d, switch_%d, sample_volume_map_size-%u", 
                 a_idx, switch_idx, data_warehouse.flow_sample_map[a_idx][switch_idx]->size);
-            CM_DEBUG(switch_idx+1, buf);
+            CM_DEBUG(switch_idx, buf);
 
             //init interval infor
             data_warehouse.pkt_num_rece[a_idx][switch_idx] = 0;

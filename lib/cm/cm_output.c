@@ -127,15 +127,15 @@ void CM_OUTPUT(int switch_id, const char* buffer) {
 
 void get_switch_output_file(int switch_id, int level, char* fname, int fname_len) {
     if (level == DEBUG_ID) {
-        snprintf(fname, fname_len, "%ss%d.debug", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
+        snprintf(fname, fname_len, "%ss%d.debug", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id+1);
     } else if (level == ERROR_ID) {
-        snprintf(fname, fname_len, "%ss%d.error", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
+        snprintf(fname, fname_len, "%ss%d.error", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id+1);
     } else if (level == WARNING_ID) {
-        snprintf(fname, fname_len, "%ss%d.warning", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
+        snprintf(fname, fname_len, "%ss%d.warning", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id+1);
     } else if (level == NOTICE_ID) {
-        snprintf(fname, fname_len, "%ss%d.notice", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
+        snprintf(fname, fname_len, "%ss%d.notice", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id+1);
     } else if (level == OUTPUT_ID) {
-        snprintf(fname, fname_len, "%ss%d.result", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id);
+        snprintf(fname, fname_len, "%ss%d.result", CM_RECEIVER_TARGET_FLOW_FNAME_PREFIX, switch_id+1);
     }
 }
 
