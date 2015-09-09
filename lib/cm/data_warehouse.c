@@ -42,13 +42,11 @@ int data_warehouse_init(void) {
             if (data_warehouse.flow_volume_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
-            /*
-            data_warehouse.target_flow_map[a_condition_idx][switch_idx] = ht_kfs_fixSize_create(
+            data_warehouse.all_target_flow_map[a_idx][switch_idx] = ht_kfs_fixSize_create(
                 cm_experiment_setting.switch_memory_times* DFAULT_CONDITION_MAP_SIZE);
-            if (data_warehouse.target_flow_map[a_condition_idx][switch_idx] == NULL) {
+            if (data_warehouse.all_target_flow_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
-            */
             if (cm_experiment_setting.switch_mem_type == UNIFORM) {
                 data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_fixSize_create(max_switch_map_size);
             } else if (cm_experiment_setting.switch_mem_type == DIVERSE) {
@@ -81,7 +79,6 @@ int data_warehouse_init(void) {
     //pthread_mutex_init(&data_warehouse.condition_map_mutex, NULL);
 
     data_warehouse.active_idx = 0;
-    //data_warehouse.active_condition_idx = 0;
     NOTICE("SUCC data_warehouse_init");
 
     return 0;
@@ -107,6 +104,7 @@ int data_warehouse_reset_noactive_buf(void) {
     for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
         //refresh the hashmaps
         ht_kfs_vi_refresh(data_warehouse.flow_volume_map[na_idx][switch_idx]);
+        ht_kfs_vi_refresh(data_warehouse.all_target_flow_map[na_idx][switch_idx]);
         ht_kfs_fixSize_refresh(data_warehouse.flow_sample_map[na_idx][switch_idx]);
         //refreshinterval infor
         data_warehouse.pkt_num_rece[na_idx][switch_idx] = 0;
@@ -183,22 +181,18 @@ int data_warehouse_reset_condition_inactive_buf(void) {
 hashtable_kfs_vi_t* data_warehouse_get_flow_volume_map(int switch_id) {
     return data_warehouse.flow_volume_map[data_warehouse.active_idx][switch_id];
 }
-/*
-hashtable_kfs_fixSize_t* data_warehouse_get_target_flow_map(int switch_id) {
-    return data_warehouse.target_flow_map[data_warehouse.active_condition_idx][switch_id];
+hashtable_kfs_vi_t* data_warehouse_get_all_target_flow_map(int switch_id) {
+    return data_warehouse.all_target_flow_map[data_warehouse.active_idx][switch_id];
 }
-*/
 hashtable_kfs_fixSize_t* data_warehouse_get_flow_sample_map(int switch_id) {
     return data_warehouse.flow_sample_map[data_warehouse.active_idx][switch_id];
 }
 hashtable_kfs_vi_t* data_warehouse_get_unactive_flow_volume_map(int switch_id){
     return data_warehouse.flow_volume_map[(data_warehouse.active_idx+1)%BUFFER_NUM][switch_id];
 }
-/*
-hashtable_kfs_fixSize_t* data_warehouse_get_unactive_target_flow_map(int switch_id) {
-    return data_warehouse.target_flow_map[(data_warehouse.active_condition_idx+1)%BUFFER_NUM][switch_id];
+hashtable_kfs_vi_t* data_warehouse_get_unactive_all_target_flow_map(int switch_id) {
+    return data_warehouse.all_target_flow_map[(data_warehouse.active_idx+1)%BUFFER_NUM][switch_id];
 }
-*/
 hashtable_kfs_fixSize_t* data_warehouse_get_unactive_sample_flow_map(int switch_id) {
     return data_warehouse.flow_sample_map[(data_warehouse.active_idx+1)%BUFFER_NUM][switch_id];
 }

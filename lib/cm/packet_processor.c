@@ -327,14 +327,19 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     flow_src_t flow_key;
     flow_key.srcip = p_packet->srcip;
 
-    //store in target map
-    //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_unactive_target_flow_map(switch_id);
-    //assert(target_flow_map != NULL);
-    //ht_kfs_fixSize_set(target_flow_map, NULL, &flow_key, 1);
-    
+    //record the target flow info
     hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
     assert(flow_sample_map != NULL);
     ht_kfs_fixSize_set_target_flow(flow_sample_map, &flow_key, p_packet->is_target_flow);
+
+    //store in all target map
+    hashtable_kfs_vi_t* all_target_flow_map = data_warehouse_get_all_target_flow_map(switch_id);
+    assert(all_target_flow_map != NULL);
+    if (p_packet->is_target_flow) {
+        ht_kfs_vi_set(all_target_flow_map, &flow_key, 1);
+    } else {
+        ht_kfs_vi_del(all_target_flow_map, &flow_key);
+    }
 }
 
 uint32_t ntohl_ovs(ovs_16aligned_be32 x) {

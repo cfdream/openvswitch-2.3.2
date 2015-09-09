@@ -61,23 +61,25 @@ void write_target_flows_to_file(void) {
     for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
         hashtable_kfs_vi_t* flow_volume_map_pre_interval = data_warehouse_get_unactive_flow_volume_map(switch_idx);
         hashtable_kfs_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map(switch_idx);
-        //hashtable_kfs_fixSize_t* target_flow_map_pre_interval = data_warehouse_get_unactive_target_flow_map(switch_idx);
+        hashtable_kfs_vi_t* all_target_flow_map_pre_interval = data_warehouse_get_unactive_all_target_flow_map(switch_idx);
         //output every flow travelling through this switch
         entry_kfs_vi_t ret_entry;
         entry_kfs_fixSize_t ret_entry_fixsize;
         while (ht_kfs_vi_next(flow_volume_map_pre_interval, &ret_entry) == 0) {
-            flow_s* p_flow = ret_entry.key;
+            flow_src_t* p_flow = &ret_entry.key;
             int all_volume = ret_entry.value;
-            //get the sampled volume of the flow
+            //get the sampled volume and is_target_flow of the flow
             memset(&ret_entry_fixsize, 0, sizeof(ret_entry_fixsize));
             ht_kfs_fixSize_get(sample_flow_map_pre_interval, p_flow, &ret_entry_fixsize);
+            //get the background is_target_flow info
+            bool is_target_flow_background = false;
+            if (ht_kfs_vi_get(all_target_flow_map_pre_interval, p_flow) > 0) {
+                is_target_flow_background = true;
+            }
             //is_target_flow = 0: not target flow
             //value: -1/0 flow not sampled
-            snprintf(buf, 100, "%u\t%d\t%d\t%d", p_flow->srcip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.is_target_flow);
+            snprintf(buf, 100, "%u\t%d\t%d\t%d\t%d", p_flow->srcip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.is_target_flow, is_target_flow_background);
             CM_OUTPUT(switch_idx, buf);
-
-            //free ret_entry.key
-            free(ret_entry.key);
         }
         /*
         entry_kfs_fixSize_t ret_entry;
