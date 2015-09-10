@@ -42,8 +42,7 @@ int data_warehouse_init(void) {
             if (data_warehouse.flow_volume_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
-            data_warehouse.all_target_flow_map[a_idx][switch_idx] = ht_kfs_fixSize_create(
-                cm_experiment_setting.switch_memory_times* DFAULT_CONDITION_MAP_SIZE);
+            data_warehouse.all_target_flow_map[a_idx][switch_idx] = ht_kfs_vi_create();
             if (data_warehouse.all_target_flow_map[a_idx][switch_idx] == NULL) {
                 return -1;
             }
