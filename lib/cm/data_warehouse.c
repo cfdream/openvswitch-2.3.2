@@ -26,7 +26,14 @@ int data_warehouse_init(void) {
                                     * cm_experiment_setting.sample_hold_setting.uniform_mem_ratio_to_diverse_mem
                                     ) ;
         if (max_switch_map_size <= 0) {
-            ERROR("FAIL: max_switch_map_size=0");
+            char buf[200];
+            snprintf(buf, 200, "ratio:%f, sample_rate:%f, max_switch_volume:%lu, max_switch_map_size:%d",
+                                    cm_experiment_setting.sample_hold_setting.uniform_mem_ratio_to_diverse_mem,
+                                    cm_experiment_setting.sample_hold_setting.default_byte_sampling_rate,
+                                    cm_experiment_setting.sample_hold_setting.max_switch_interval_volume,
+                                    max_switch_map_size
+                    );
+            ERROR(buf);
             return -1;
         }
     }
