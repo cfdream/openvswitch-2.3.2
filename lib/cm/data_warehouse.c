@@ -27,7 +27,7 @@ int data_warehouse_init(void) {
                                     ) ;
         if (max_switch_map_size <= 0) {
             char buf[200];
-            snprintf(buf, 200, "ratio:%f, sample_rate:%f, max_switch_volume:%lu, max_switch_map_size:%d",
+            snprintf(buf, 200, "FATAL: ratio:%f, sample_rate:%f, max_switch_volume:%lu, max_switch_map_size:%d",
                                     cm_experiment_setting.sample_hold_setting.uniform_mem_ratio_to_diverse_mem,
                                     cm_experiment_setting.sample_hold_setting.default_byte_sampling_rate,
                                     cm_experiment_setting.sample_hold_setting.max_switch_interval_volume,
@@ -56,11 +56,17 @@ int data_warehouse_init(void) {
                 int map_size = (int)(cm_experiment_setting.switch_memory_times 
                                     * cm_experiment_setting.sample_hold_setting.default_byte_sampling_rate 
                                     * cm_experiment_setting.sample_hold_setting.switches_interval_volume[switch_idx]);
-                data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_fixSize_create(map_size);
                 if (map_size <= 0) {
-                    ERROR("FAIL: map_size=0");
+                    char buf[200];
+                    snprintf(buf, 200, "FATAL: switchid:%d, switch_memory_times:%f, byte_sample_rate:%f, switch_volume:%lu",
+                                            switch_idx,
+                                            cm_experiment_setting.switch_memory_times,
+                                            cm_experiment_setting.sample_hold_setting.default_byte_sampling_rate,
+                                            cm_experiment_setting.sample_hold_setting.switches_interval_volume[switch_idx]);
+                    ERROR(buf);
                     return -1;
                 }
+                data_warehouse.flow_sample_map[a_idx][switch_idx] = ht_kfs_fixSize_create(map_size);
             }
             if (data_warehouse.flow_sample_map[a_idx][switch_idx] == NULL) {
                 return -1;
