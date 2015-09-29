@@ -88,7 +88,7 @@ int host_packet_sampled(struct eth_header *eh) {
         struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
         /*
         char buf[100];
-        snprintf(buf, 100, "veth_type:0x%04x, veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
+        snprintf(buf, 100, "veth_type:0x%04x, sample_bit-veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
         DEBUG(buf);
         */
         return vlan_eh->veth_tci & TAG_VLAN_PACKET_SAMPLED_VAL;
@@ -105,7 +105,7 @@ bool get_target_flow_bit_val(struct eth_header *eh) {
         struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
         /*
         char buf[100];
-        snprintf(buf, 100, "veth_type:0x%04x, veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
+        snprintf(buf, 100, "veth_type:0x%04x, target_flow_bit-veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
         DEBUG(buf);
         */
         return vlan_eh->veth_tci & TAG_VLAN_TARGET_FLOW_VAL;
