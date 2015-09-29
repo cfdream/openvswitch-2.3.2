@@ -318,7 +318,7 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     }
 
     //char buf[100];
-    //snprintf(buf, 100, "condition srcip:%u", p_packet->srcip);
+    //snprintf(buf, 100, "condition srcip:%u, plus_minus:%d", p_packet->srcip, p_packet->is_target_flow);
     //CM_DEBUG(switch_id, buf);
     
     //record the condition information of the flow in condition_flow_map
