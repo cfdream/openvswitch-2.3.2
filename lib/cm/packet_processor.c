@@ -228,6 +228,11 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         //check pakcet is sample or not
         packet.sampled = packet_sampled(eh, &packet, p_rand_buffer, switch_id);
 
+        //if TAG_PKT_AS_CONDITION, get the tag of is_target_flow or not
+        if (cm_experiment_setting.inject_or_tag_packet == TAG_PKT_AS_CONDITION) {
+            packet.is_target_flow = get_target_flow_bit_val(eh);
+        }
+
         if(!drop_packet(switch_id, p_rand_buffer)) {
             /* if packet not dropped, process the normal packet */
             process_normal_packet(switch_id, &packet);
@@ -305,7 +310,14 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
     /* 3. for sampled packet, add the flow's volume in flow_sample_map */
     hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
     assert(flow_sample_map != NULL);
-    ht_kfs_fixSize_add_value(flow_sample_map, &flow_key, p_packet->len);
+
+    if (cm_experiment_setting.inject_or_tag_packet == INJECT_PKT_AS_CONDITION) {
+        //normal packet does not include is_target_flow information
+        ht_kfs_fixSize_add_value(flow_sample_map, &flow_key, p_packet->len);
+    } else if (cm_experiment_setting.inject_or_tag_packet == TAG_PKT_AS_CONDITION){
+        //normal packet does include is_target_flow information
+        ht_kfs_fixSize_add_value_and_update_target_flow_info(flow_sample_map, &flow_key, p_packet->len, p_packet->is_target_flow);
+    }
 }
 
 void process_condition_packet(int switch_id, packet_t* p_packet) {
