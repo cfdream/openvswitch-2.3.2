@@ -289,7 +289,13 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
     }
 
     flow_src_t flow_key;
+    #ifdef FLOW_SRC
     flow_key.srcip = p_packet->srcip;
+    #endif
+    #ifdef FLOW_SRC_DST
+    flow_key.srcip = p_packet->srcip;
+    flow_key.dstip = p_packet->dstip;
+    #endif
 
     /* 1. add flow's volume in groundtruth map */
     hashtable_kfs_vi_t* flow_volume_map =  data_warehouse_get_flow_volume_map(switch_id);
@@ -337,7 +343,13 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     //NOTE: received condition is stored in inactive condition_flow_map, will be switches by condition_rotate_thread
     //Refer to condition_rotator.c
     flow_src_t flow_key;
+    #ifdef FLOW_SRC
     flow_key.srcip = p_packet->srcip;
+    #endif
+    #ifdef FLOW_SRC_DST
+    flow_key.srcip = p_packet->srcip;
+    flow_key.dstip = p_packet->dstip;
+    #endif
 
     //record the target flow info
     hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);

@@ -17,7 +17,12 @@ extern cm_experiment_setting_t cm_experiment_setting;
 
 void init_target_flow_files(void) {
     char buffer[100];
+    #ifdef FLOW_SRC
     snprintf(buffer, 100, "%s\t%s\t%s", "srcip", "volume_travel_through", "volume_sampled");
+    #endif
+    #ifdef FLOW_SRC_DST
+    snprintf(buffer, 100, "%s\t%s\t%s\t%s", "srcip", "dstip", "volume_travel_through", "volume_sampled");
+    #endif
     int switch_idx = 0;
     for (; switch_idx < NUM_SWITCHES; ++switch_idx) {
         CM_OUTPUT(switch_idx, buffer);
@@ -78,7 +83,12 @@ void write_target_flows_to_file(void) {
             }
             //is_target_flow = 0: not target flow
             //value: -1/0 flow not sampled
+            #ifdef FLOW_SRC
             snprintf(buf, 100, "%u\t%d\t%d\t%d\t%d", p_flow->srcip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.is_target_flow, is_target_flow_background);
+            #endif
+            #ifdef FLOW_SRC_DST
+            snprintf(buf, 100, "%u\t%u\t%d\t%d\t%d\t%d", p_flow->srcip, p_flow->dstip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.is_target_flow, is_target_flow_background);
+            #endif
             CM_OUTPUT(switch_idx, buf);
         }
         /*
