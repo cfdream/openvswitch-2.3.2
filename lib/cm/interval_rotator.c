@@ -1,4 +1,3 @@
-
 #include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,12 +129,11 @@ void* rotate_interval(void* param) {
     struct timespec spec;
     uint64_t sec;
     int switch_idx = 0;
+    
+    //wait to next whole 10 minutes <=> 600s <=> 600000 minisecond
+    uint64_t current_msec = get_next_interval_start(600000);
 
     while (true) {
-        /* all switches start/end at the nearby timestamp for intervals */
-        /* postpone till switching to next time interval */
-        uint64_t current_msec = get_next_interval_start(cm_experiment_setting.interval_msec_len);
-
         //0. get a copy of pre interval target_flow_map
         //As the write process will take time,
         //and condition_rotator thread will needs to take the mutex
@@ -172,6 +170,9 @@ void* rotate_interval(void* param) {
         //destory the copied hashtable
         //ht_kfs_fixSize_destory(copy_target_flow_map_pre_interval);
         //pthread_mutex_unlock(&data_warehouse.condition_map_mutex);
+        
+        //wait one interval length
+        usleep(cm_experiment_setting.interval_msec_len*1000);
     }
     return NULL;
 }
