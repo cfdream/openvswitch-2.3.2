@@ -18,6 +18,7 @@ int packet_sampled(struct eth_header* eh, packet_t* p_packet, struct drand48_dat
 int switch_packet_sampled(packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id);
 int host_packet_sampled(struct eth_header *eh);
 bool get_target_flow_bit_val(struct eth_header *eh);
+bool is_the_switch_monitor_for_the_pkt(struct eth_header *eh, int switch_id);
 //return 0: packet not dropped, 1:packet dropped
 int process(const struct dp_packet *packet, const struct dpif* dpif, struct drand48_data* p_rand_buffer);
 void process_normal_packet(int switch_id, packet_t* packet);

@@ -121,7 +121,6 @@ void write_target_flows_to_file(void) {
 }
 
 void* rotate_interval(void* param) {
-    UNUSED(param);
     //sleep two second
     sleep(2);
 

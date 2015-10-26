@@ -61,16 +61,6 @@ void cm_task_init(void){
     DEBUG("end: cm_task_init");
 }
 
-int packet_sampled(struct eth_header* eh, packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id) {
-    if (cm_experiment_setting.host_or_switch_sample == HOST_SAMPLE) {
-        return host_packet_sampled(eh);
-    } else if (cm_experiment_setting.host_or_switch_sample == SWITCH_SAMPLE) {
-        return switch_packet_sampled(p_packet, p_rand_buffer, switch_id);
-    } else {
-        return -1;
-    }
-}
-
 int switch_packet_sampled(packet_t* p_packet, struct drand48_data* p_rand_buffer, int switch_id) {
     hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
     //hashtable_kfs_fixSize_t* target_flow_map = data_warehouse_get_target_flow_map(switch_id);
@@ -111,6 +101,24 @@ bool get_target_flow_bit_val(struct eth_header *eh) {
         return vlan_eh->veth_tci & TAG_VLAN_TARGET_FLOW_VAL;
     }
     return 0;
+}
+
+bool is_the_switch_monitor_for_the_pkt(struct eth_header *eh, int switch_id) {
+    if(!eh) {
+        return false;
+    }
+
+    if (eth_type_vlan(eh->eth_type)) {
+        struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
+        /*
+        char buf[100];
+        snprintf(buf, 100, "veth_type:0x%04x, target_flow_bit-veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
+        DEBUG(buf);
+        */
+        return vlan_eh->veth_tci & TAG_VLAN_FOR_SWITCH_I(switch_id);
+    }
+    return 0;
+    return false;
 }
 
 /**
@@ -225,11 +233,23 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         char* pkt_buf = (char*)dp_packet_l4(p_packet) + sizeof(struct tcp_header);
         packet.len = *(int*)pkt_buf;
 
+        //---------pre process for normal packet, sample and hold, get target flow information---------
+        //check whether the switch is one monitor for the packet
+        bool is_monitor_for_the_pkt = is_the_switch_monitor_for_the_pkt(eh, switch_id);
+
         //check pakcet is sample or not
-        packet.sampled = packet_sampled(eh, &packet, p_rand_buffer, switch_id);
+        packet.sampled = 0;
+        if (cm_experiment_setting.host_or_switch_sample == HOST_SAMPLE) {
+            if (is_monitor_for_the_pkt) {
+                packet.sampled = host_packet_sampled(eh);
+            }
+        } else if (cm_experiment_setting.host_or_switch_sample == SWITCH_SAMPLE) {
+            packet.sampled = switch_packet_sampled(&packet, p_rand_buffer, switch_id);
+        }
 
         //if TAG_PKT_AS_CONDITION, get the tag of is_target_flow or not
-        if (cm_experiment_setting.inject_or_tag_packet == TAG_PKT_AS_CONDITION) {
+        if (is_monitor_for_the_pkt
+            && cm_experiment_setting.inject_or_tag_packet == TAG_PKT_AS_CONDITION) {
             packet.is_target_flow = get_target_flow_bit_val(eh);
         }
 
