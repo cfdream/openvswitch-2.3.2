@@ -173,6 +173,9 @@ void* rotate_interval(void* param) {
         
         //wait one interval length
         usleep(cm_experiment_setting.interval_msec_len*1000);
+        clock_gettime(CLOCK_REALTIME, &spec);
+        //1s = 10^3 msec, 1 ns = 10^-6 msec
+        current_msec = (intmax_t)spec.tv_sec * 1000 + spec.tv_nsec / 1000000;
     }
     return NULL;
 }
