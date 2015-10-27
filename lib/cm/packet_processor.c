@@ -236,6 +236,21 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         //---------pre process for normal packet, sample and hold, get target flow information---------
         //check whether the switch is one monitor for the packet
         bool is_monitor_for_the_pkt = is_the_switch_monitor_for_the_pkt(eh, switch_id);
+        /*
+        if (ENABLE_DEBUG && is_monitor_for_the_pkt) {
+            char src_str[100];
+            char dst_str[100];
+            ip_to_str(packet.srcip, src_str, 100);
+            ip_to_str(packet.dstip, dst_str, 100);
+
+            snprintf(buf, 200, "switch: flow[%s-%s-%u-%u-%u--len:%u-switch_id:%d-pktid-%u]", 
+                src_str, dst_str, 
+                packet.src_port, packet.dst_port,
+                packet.seqid, packet.len, 
+                switch_id, g_received_pkt_num);
+            CM_DEBUG(switch_id, buf);
+        }
+        */
 
         //check pakcet is sample or not
         packet.sampled = 0;
