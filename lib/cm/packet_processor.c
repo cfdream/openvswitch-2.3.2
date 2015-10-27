@@ -100,7 +100,7 @@ bool get_target_flow_bit_val(struct eth_header *eh) {
         */
         return vlan_eh->veth_tci & TAG_VLAN_TARGET_FLOW_VAL;
     }
-    return 0;
+    return false;
 }
 
 bool is_the_switch_monitor_for_the_pkt(struct eth_header *eh, int switch_id) {
@@ -112,12 +112,11 @@ bool is_the_switch_monitor_for_the_pkt(struct eth_header *eh, int switch_id) {
         struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
         /*
         char buf[100];
-        snprintf(buf, 100, "veth_type:0x%04x, target_flow_bit-veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
-        DEBUG(buf);
+        snprintf(buf, 100, "veth_type:0x%04x, target_flow_bit-veth_tci:%04x", vlan_eh->veth_type, vlan_eh->veth_tci);
+        CM_DEBUG(switch_id, buf);
         */
         return vlan_eh->veth_tci & TAG_VLAN_FOR_SWITCH_I(switch_id);
     }
-    return 0;
     return false;
 }
 
