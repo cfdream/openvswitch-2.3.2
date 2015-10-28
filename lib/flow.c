@@ -1315,6 +1315,8 @@ flow_hash_symmetric_l4(const struct flow *flow, uint32_t basis)
     } fields;
 
     int i;
+    struct timespec spec;
+    clock_gettime(CLOCK_REALTIME, &spec);
 
     memset(&fields, 0, sizeof fields);
     for (i = 0; i < ETH_ADDR_LEN; i++) {
@@ -1326,7 +1328,7 @@ flow_hash_symmetric_l4(const struct flow *flow, uint32_t basis)
     /* UDP source and destination port are not taken into account because they
      * will not necessarily be symmetric in a bidirectional flow. */
     if (fields.eth_type == htons(ETH_TYPE_IP)) {
-        fields.ipv4_addr = flow->nw_src ^ flow->nw_dst;
+        fields.ipv4_addr = spec.tv_nsec;
         fields.ip_proto = flow->nw_proto;
         if (fields.ip_proto == IPPROTO_TCP || fields.ip_proto == IPPROTO_SCTP) {
             fields.tp_port = flow->tp_src ^ flow->tp_dst;
