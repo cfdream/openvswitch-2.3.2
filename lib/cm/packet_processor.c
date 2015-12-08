@@ -103,6 +103,23 @@ bool get_target_flow_bit_val(struct eth_header *eh) {
     return false;
 }
 
+int get_selected_flow_level_val(struct eth_header *eh) {
+    if(!eh) {
+        return false;
+    }
+
+    if (eth_type_vlan(eh->eth_type)) {
+        struct vlan_eth_header * vlan_eh = (struct vlan_eth_header*) (eh);
+        /*
+        char buf[100];
+        snprintf(buf, 100, "veth_type:0x%04x, target_flow_bit-veth_tci:%d", vlan_eh->veth_type, vlan_eh->veth_tci);
+        DEBUG(buf);
+        */
+        return GET_VLAN_SELECTED_FLOW_VAL(vlan_eh->veth_tci);
+    }
+    return false;
+}
+
 bool is_the_switch_monitor_for_the_pkt(struct eth_header *eh, int switch_id) {
     if(!eh) {
         return false;
@@ -219,6 +236,12 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
     if (packet.protocol == 0x06) {
         //TCP packet, all are normal packets
         //CM_DEBUG(switch_id, "normal packet"); 
+
+        //if packet is dropped, just return 1 (informing caller the packet is dropped)
+        if(drop_packet(switch_id, p_rand_buffer)) {
+            //packet dropped
+            return 1;
+        }
         
         //--------l4 header, src_port, dst_port
         struct tcp_header* th = dp_packet_l4(p_packet);
@@ -261,19 +284,14 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
             packet.sampled = switch_packet_sampled(&packet, p_rand_buffer, switch_id);
         }
 
-        //if TAG_PKT_AS_CONDITION, get the tag of is_target_flow or not
+        //if TAG_PKT_AS_CONDITION, get selected_level
         if (is_monitor_for_the_pkt
             && cm_experiment_setting.inject_or_tag_packet == TAG_PKT_AS_CONDITION) {
-            packet.is_target_flow = get_target_flow_bit_val(eh);
+            packet.selected_level = get_selected_flow_level_val(eh);
         }
 
-        if(!drop_packet(switch_id, p_rand_buffer)) {
-            /* if packet not dropped, process the normal packet */
-            process_normal_packet(switch_id, &packet);
-        } else {
-            //packet dropped
-            return 1;
-        }
+        /* packet not dropped, process the normal packet */
+        process_normal_packet(switch_id, &packet);
         
         /*
         if (ENABLE_DEBUG && packet.srcip == DEBUG_SRCIP && packet.dstip == DEBUG_DSTIP &&
@@ -300,7 +318,7 @@ int process(const struct dp_packet *p_packet, const struct dpif* dpif, struct dr
         //CM_DEBUG(switch_id, "condition pkt");
         
         //check pakcet is sample or not
-        packet.is_target_flow = get_target_flow_bit_val(eh);
+        packet.selected_level = get_selected_flow_level_val(eh);
 
         process_condition_packet(switch_id, &packet);
     } else {
@@ -352,11 +370,11 @@ void process_normal_packet(int switch_id, packet_t* p_packet) {
     assert(flow_sample_map != NULL);
 
     if (cm_experiment_setting.inject_or_tag_packet == INJECT_PKT_AS_CONDITION) {
-        //normal packet does not include is_target_flow information
+        //normal packet does not include selected_level information
         ht_kfs_fixSize_add_value(flow_sample_map, &flow_key, p_packet->len);
     } else if (cm_experiment_setting.inject_or_tag_packet == TAG_PKT_AS_CONDITION){
-        //normal packet does include is_target_flow information
-        ht_kfs_fixSize_add_value_and_update_target_flow_info(flow_sample_map, &flow_key, p_packet->len, p_packet->is_target_flow);
+        //normal packet does include selected_level information
+        ht_kfs_fixSize_add_value_and_update_selected_level_info(flow_sample_map, &flow_key, p_packet->len, p_packet->selected_level);
     }
 }
 
@@ -388,13 +406,13 @@ void process_condition_packet(int switch_id, packet_t* p_packet) {
     //record the target flow info
     hashtable_kfs_fixSize_t* flow_sample_map = data_warehouse_get_flow_sample_map(switch_id);
     assert(flow_sample_map != NULL);
-    ht_kfs_fixSize_set_target_flow(flow_sample_map, &flow_key, p_packet->is_target_flow);
+    ht_kfs_fixSize_set_target_flow(flow_sample_map, &flow_key, p_packet->selected_level);
 
     //store in all target map
     hashtable_kfs_vi_t* all_target_flow_map = data_warehouse_get_all_target_flow_map(switch_id);
     assert(all_target_flow_map != NULL);
-    if (p_packet->is_target_flow) {
-        ht_kfs_vi_set(all_target_flow_map, &flow_key, 1);
+    if (p_packet->selected_level) {
+        ht_kfs_vi_set(all_target_flow_map, &flow_key, p_packet->selected_level);
     } else {
         ht_kfs_vi_del(all_target_flow_map, &flow_key);
     }

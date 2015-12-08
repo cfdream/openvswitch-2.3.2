@@ -72,21 +72,21 @@ void write_target_flows_to_file(void) {
         while (ht_kfs_vi_next(flow_volume_map_pre_interval, &ret_entry) == 0) {
             flow_src_t* p_flow = &ret_entry.key;
             int all_volume = ret_entry.value;
-            //get the sampled volume and is_target_flow of the flow
+            //get the sampled volume and selected_level of the flow
             memset(&ret_entry_fixsize, 0, sizeof(ret_entry_fixsize));
             ht_kfs_fixSize_get(sample_flow_map_pre_interval, p_flow, &ret_entry_fixsize);
-            //get the background is_target_flow info
-            bool is_target_flow_background = false;
+            //get the background selected_level info
+            int selected_level_background = 0;
             if (ht_kfs_vi_get(all_target_flow_map_pre_interval, p_flow) > 0) {
-                is_target_flow_background = true;
+                selected_level_background = true;
             }
-            //is_target_flow = 0: not target flow
+            //selected_level = 0: not target flow
             //value: -1/0 flow not sampled
             #ifdef FLOW_SRC
-            snprintf(buf, 100, "%u\t%d\t%d\t%d\t%d", p_flow->srcip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.is_target_flow, is_target_flow_background);
+            snprintf(buf, 100, "%u\t%d\t%d\t%d\t%d", p_flow->srcip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.selected_level, selected_level_background);
             #endif
             #ifdef FLOW_SRC_DST
-            snprintf(buf, 100, "%u\t%u\t%d\t%d\t%d\t%d", p_flow->srcip, p_flow->dstip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.is_target_flow, is_target_flow_background);
+            snprintf(buf, 100, "%u\t%u\t%d\t%d\t%d\t%d", p_flow->srcip, p_flow->dstip, all_volume, ret_entry_fixsize.value, ret_entry_fixsize.selected_level, selected_level_background);
             #endif
             CM_OUTPUT(switch_idx, buf);
         }
