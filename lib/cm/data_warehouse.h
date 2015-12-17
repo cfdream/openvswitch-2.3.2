@@ -20,7 +20,7 @@ typedef struct data_warehouse_s {
     // flow sampled volume map
     hashtable_kfs_fixSize_t* flow_sample_map[BUFFER_NUM][NUM_SWITCHES];
     //for debug only
-    hashtable_kfs_vi_t* all_target_flow_map[BUFFER_NUM][NUM_SWITCHES];
+    hashtable_kfs_vi_t* all_flow_selected_level_map[BUFFER_NUM][NUM_SWITCHES];
 
     // target flow map
     //int active_condition_idx;
@@ -75,12 +75,12 @@ hashtable_kfs_vi_t* data_warehouse_get_flow_volume_map(int switch_id);
 
 hashtable_kfs_fixSize_t* data_warehouse_get_flow_sample_map(int switch_id);
 
-hashtable_kfs_vi_t* data_warehouse_get_all_target_flow_map(int switch_id);
+hashtable_kfs_vi_t* data_warehouse_get_all_flow_selected_level_map(int switch_id);
 
 hashtable_kfs_vi_t* data_warehouse_get_unactive_flow_volume_map(int switch_id);
 
 hashtable_kfs_fixSize_t* data_warehouse_get_unactive_sample_flow_map(int switch_id);
 
-hashtable_kfs_vi_t* data_warehouse_get_unactive_all_target_flow_map(int switch_id);
+hashtable_kfs_vi_t* data_warehouse_get_unactive_all_flow_selected_level_map(int switch_id);
 
 #endif

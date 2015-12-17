@@ -65,7 +65,7 @@ void write_target_flows_to_file(void) {
     for (switch_idx = 0; switch_idx < NUM_SWITCHES; ++switch_idx) {
         hashtable_kfs_vi_t* flow_volume_map_pre_interval = data_warehouse_get_unactive_flow_volume_map(switch_idx);
         hashtable_kfs_fixSize_t* sample_flow_map_pre_interval = data_warehouse_get_unactive_sample_flow_map(switch_idx);
-        hashtable_kfs_vi_t* all_target_flow_map_pre_interval = data_warehouse_get_unactive_all_target_flow_map(switch_idx);
+        hashtable_kfs_vi_t* all_flow_selected_level_map_pre_interval = data_warehouse_get_unactive_all_flow_selected_level_map(switch_idx);
         //output every flow travelling through this switch
         entry_kfs_vi_t ret_entry;
         entry_kfs_fixSize_t ret_entry_fixsize;
@@ -76,9 +76,9 @@ void write_target_flows_to_file(void) {
             memset(&ret_entry_fixsize, 0, sizeof(ret_entry_fixsize));
             ht_kfs_fixSize_get(sample_flow_map_pre_interval, p_flow, &ret_entry_fixsize);
             //get the background selected_level info
-            int selected_level_background = 0;
-            if (ht_kfs_vi_get(all_target_flow_map_pre_interval, p_flow) > 0) {
-                selected_level_background = true;
+            int selected_level_background = ht_kfs_vi_get(all_flow_selected_level_map_pre_interval, p_flow);
+            if (selected_level_background < 0) {
+                selected_level_background = 0;
             }
             //selected_level = 0: not target flow
             //value: -1/0 flow not sampled
